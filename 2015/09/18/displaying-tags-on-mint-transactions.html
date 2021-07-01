@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Displaying Tags on Mint Transactions</title>
+  <meta name="description" content="Enable your browser to display tags on Mint.com transactions.">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://warkmilson.com/2015/09/18/displaying-tags-on-mint-transactions.html">
+  <link rel="alternate" type="application/rss+xml" title="wark milson" href="http://warkmilson.com/feed.xml" />
+
+  <meta property="og:image" content="http://warkmilson.com/assets/mint-tags-display/transactions-with-tags.png" />
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/"><span class="rotate">w</span>ark <span class="rotate">m</span>ilson</a>
+
+    <nav class="site-nav">
+      <div class="trigger">
+        
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Displaying Tags on Mint Transactions</h1>
+    <p class="post-meta">Sep 18, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <p>I’ve used <a href="https://www.mint.com/">Mint.com</a> to categorize and measure my spending for years. It is an amazing tool, but the user interface for tagging transactions has always had a frustrating limitation. After adding a tag to a transaction, you don’t see that tag anywhere on the page. I wrote a user script to display them:</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/mint-tags-display/transactions-with-tags.png" alt="Mint.com transactions listing with tags visible" />
+  
+</figure>
+
+<h2 id="how-do-i-install-it">How do I install it?</h2>
+
+<p>Follow the (very short) <a href="https://github.com/mddub/mint-tags-display">installation instructions on GitHub</a>.</p>
+
+<h2 id="why-is-this-necessary">Why is this necessary?</h2>
+
+<p>On Mint, a transaction must belong to one category (for example, <strong>Vacation</strong> or <strong>Restaurants</strong>). At the same time, a transaction may belong to any number of tags (for example, I can add the <strong>Taiwan trip</strong> tag to an expense in the <strong>Vacation</strong> category, or add <strong>Work lunch</strong> and <strong>Client X</strong> tags to an expense in the <strong>Restaurants</strong> category). The way I use Mint, categories and tags are both important to gaining a complete understanding of where my money goes. Unfortunately, in the transactions list (above), only categories are displayed.</p>
+
+<p>The only time you ever see what tags you have applied to a transaction is when you are editing it:</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/mint-tags-display/edit-transaction-dialog.png" alt="The only part of Mint's interface where tags are visible." />
+  
+    <figcaption>The only part of Mint's interface where tags are visible.</figcaption>
+  
+</figure>
+
+<p>I’m baffled that the tags feature has such a <a href="https://mint.lc.intuit.com/questions/981133-is-there-a-way-to-show-a-tags-column-in-the-transactions-page">glaring omission in functionality</a>… so I wrote a user script to fix it.</p>
+
+<h2 id="how-does-it-work">How does it work?</h2>
+
+<p>A user script is a piece of JavaScript code which your browser includes on certain web pages. In this case, I’ve written code which alters the way that the Mint.com transactions page works. I want to see what data my browser is requesting from Mint’s servers, find the transaction tags within that data, store a temporary copy of them, and insert the tags into the page.</p>
+
+<h3 id="find-xhr-responses-containing-transaction-data">Find XHR responses containing transaction data</h3>
+
+<p>The first step is to <a href="http://debugbrowser.com/">use my browser’s developer tools</a> to watch the traffic on the transactions page. When the page loads, the Mint app makes many requests: images, JavaScript code, and data. I’m interested only in what <em>data</em> is being sent, so I filter the requests to show only XHR:</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/mint-tags-display/mint-all-xhr-requests.png" alt="XHR requests made by the Mint app on page load." />
+  
+    <figcaption>XHR requests made by the Mint app on page load.</figcaption>
+  
+</figure>
+
+<p>I notice that the Mint app makes a request to <code>getJsonData.xevent</code> on every page load. To investigate, I try loading different transactions into the page by clicking “Next” at the bottom of the transactions list, or by performing a transaction search. Each time, another request is made to that URL. Filtering the requests to show only those for this URL, and inspecting the content of the responses, confirms that the list of transactions is included in this data. Digging deeper into the structure of the data, I can find how the “labels” for each transaction are represented:</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/mint-tags-display/mint-getjsondata-requests.png" alt="The structure of the data sent back for a request to /getJsonData.xevent." />
+  
+</figure>
+
+<h3 id="overwrite-the-browsers-xhr-code-to-intercept-the-data">Overwrite the browser’s XHR code to intercept the data</h3>
+
+<p>The above AJAX requests are made every time the transactions page loads. JavaScript allows a developer to overwrite the base AJAX request function which is used by all other code on a page (including Mint’s own code) to obtain data from the server. I can replace that function with my own code, then look for completed requests made to the <code>getJsonData.xevent</code> endpoint. Then my code can store its own copy of the data before the Mint app even sees it.</p>
+
+<p>I overwrite the <code>XMLHttpRequest.prototype.open</code> method to run my code first, and then call the browser’s original version of the method. This allows me to inspect every request:</p>
+
+<figure class="highlight"><pre><code class="language-javascript" data-lang="javascript"><span></span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">open</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">XMLHttpRequest</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">open</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c1">// Add a listener for state changes on any request.</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s1">&#39;readystatechange&#39;</span><span class="p">,</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+
+      <span class="c1">// Any time a request changes to the completed state, and the request URL</span>
+      <span class="c1">// indicates it was for transaction data, store the data.</span>
+      <span class="k">if</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">readyState</span> <span class="o">===</span> <span class="mi">4</span> <span class="o">&amp;&amp;</span> <span class="k">this</span><span class="p">.</span><span class="nx">responseURL</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="s1">&#39;getJsonData.xevent&#39;</span><span class="p">))</span> <span class="p">{</span>
+        <span class="nx">maybeInterceptTransactionsList</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">responseText</span><span class="p">);</span>
+      <span class="p">}</span>
+    <span class="p">},</span> <span class="kc">false</span><span class="p">);</span>
+
+    <span class="c1">// Call the original XMLHttpRequest.prototype.open.</span>
+    <span class="nx">open</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="k">this</span><span class="p">,</span> <span class="nx">arguments</span><span class="p">);</span>
+  <span class="p">};</span>
+<span class="p">})(</span><span class="nx">XMLHttpRequest</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">open</span><span class="p">);</span></code></pre></figure>
+
+<h3 id="react-to-changes-in-the-content-of-the-transactions-table">React to changes in the content of the transactions table</h3>
+
+<p>Next, I need to use the data stored by the code above to add the tags to the transactions table. I can’t simply add them as soon as the data arrives, because the Mint app needs a chance to process that data and populate the table with it. A hacky way to do this would be to use <code>setTimeout</code> or <code>setInterval</code> to check the transactions table every few seconds to see if it’s changed, and add/remove tags as necessary. But there’s a better way: the <a href="https://hacks.mozilla.org/2012/05/dom-mutationobserver-reacting-to-dom-changes-without-killing-browser-performance/">MutationObserver API</a>. This is a <a href="http://caniuse.com/#feat=mutationobserver">new-ish</a> browser API, almost tailor-made for the use case of third-party code watching for changes to the DOM.</p>
+
+<figure class="highlight"><pre><code class="language-javascript" data-lang="javascript"><span></span><span class="k">new</span> <span class="nx">MutationObserver</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">mutations</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">mutations</span><span class="p">.</span><span class="nx">forEach</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">mutation</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// When the text in an element of the table changes, find the row it belongs to,</span>
+    <span class="c1">// and add/remove tags for that transaction. It helps that the table rows we are</span>
+    <span class="c1">// interested in have ids like &#39;transaction-743382659&#39;.</span>
+    <span class="kd">var</span> <span class="nx">$tr</span> <span class="o">=</span> <span class="nx">jQuery</span><span class="p">(</span><span class="nx">mutation</span><span class="p">.</span><span class="nx">target</span><span class="p">).</span><span class="nx">parents</span><span class="p">(</span><span class="s1">&#39;tr&#39;</span><span class="p">).</span><span class="nx">first</span><span class="p">();</span>
+    <span class="k">if</span><span class="p">(</span><span class="nx">$tr</span><span class="p">.</span><span class="nx">length</span> <span class="o">&amp;&amp;</span> <span class="nx">$tr</span><span class="p">.</span><span class="nx">attr</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">$tr</span><span class="p">.</span><span class="nx">attr</span><span class="p">(</span><span class="s1">&#39;id&#39;</span><span class="p">).</span><span class="nx">indexOf</span><span class="p">(</span><span class="s1">&#39;transaction-&#39;</span><span class="p">)</span> <span class="o">===</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">updateRowWithTags</span><span class="p">(</span><span class="nx">$tr</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">});</span>
+<span class="p">}).</span><span class="nx">observe</span><span class="p">(</span>
+  <span class="nb">document</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;#transaction-list-body&#39;</span><span class="p">),</span>
+  <span class="c1">// We&#39;re interested in mutations to the child nodes of the transactions table,</span>
+  <span class="c1">// but only characterData mutations, i.e. &quot;some text has changed&quot;.</span>
+  <span class="p">{</span><span class="nx">subtree</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span> <span class="nx">childList</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span> <span class="nx">characterData</span><span class="o">:</span> <span class="kc">true</span><span class="p">}</span>
+<span class="p">);</span></code></pre></figure>
+
+<h3 id="react-to-the-user-editing-a-transaction">React to the user editing a transaction</h3>
+
+<p>It turns out that I can’t respond only to changes to the transactions table (triggered by navigating between pages of transactions or a search). I also need to update the table after the user edits a transaction. For this, the code must intercept XHR <em>requests</em>, so that it can spy on POSTs to the edit transaction endpoint (just as it spied on XHR <em>responses</em> for the transaction list above).</p>
+
+<figure class="highlight"><pre><code class="language-javascript" data-lang="javascript"><span></span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">open</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">XMLHttpRequest</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">open</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c1">// If the Mint app makes a POST request to the &quot;update transaction&quot; endpoint...</span>
+    <span class="k">if</span><span class="p">(</span><span class="nx">arguments</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="nx">match</span><span class="p">(</span><span class="sr">/post/i</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">arguments</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="nx">match</span><span class="p">(</span><span class="s1">&#39;updateTransaction.xevent&#39;</span><span class="p">))</span> <span class="p">{</span>
+
+      <span class="c1">// Overwrite the `send` method of this request to store a copy of the data</span>
+      <span class="c1">// before it gets sent.</span>
+      <span class="kd">var</span> <span class="nx">self</span> <span class="o">=</span> <span class="k">this</span><span class="p">,</span> <span class="nx">send</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">send</span><span class="p">;</span>
+      <span class="k">this</span><span class="p">.</span><span class="nx">send</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+        <span class="nx">interceptTransactionEdit</span><span class="p">(</span><span class="nx">arguments</span><span class="p">[</span><span class="mi">0</span><span class="p">]);</span>
+
+        <span class="c1">// Call the original `send` method.</span>
+        <span class="nx">send</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="nx">self</span><span class="p">,</span> <span class="nx">arguments</span><span class="p">);</span>
+      <span class="p">};</span>
+    <span class="p">}</span>
+
+    <span class="nx">open</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="k">this</span><span class="p">,</span> <span class="nx">arguments</span><span class="p">);</span>
+  <span class="p">};</span>
+<span class="p">})(</span><span class="nx">XMLHttpRequest</span><span class="p">.</span><span class="nx">prototype</span><span class="p">.</span><span class="nx">open</span><span class="p">);</span></code></pre></figure>
+
+<h3 id="it-doesnt-take-much-code">It doesn’t take much code</h3>
+
+<p>The final code is a bit more nuanced than just the above. For example, Mint makes a separate request for a mapping from tag ID to tag name, which also must be cached. When Mint updates the transactions table, it actually triggers multiple DOM mutation events for each row (one each for date, merchant, price, etc.), so the code must be smart enough to update each row only once. Also, observing the DOM must be paused while the user script itself mutates the DOM by adding tags.</p>
+
+<p>Nonetheless, the full code to add this functionality is fewer than 200 lines of readable, whitespace-heavy JavaScript. Adding a browser extension like this requires trust, so <a href="https://github.com/mddub/mint-tags-display/blob/master/mint-tags-display.user.js">read through the code yourself on GitHub!</a></p>
+
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-55947759-1', 'auto');
+      ga('send', 'pageview');
+    </script>
+  </body>
+
+</html>

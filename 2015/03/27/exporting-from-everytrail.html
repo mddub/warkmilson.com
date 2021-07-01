@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Exporting from EveryTrail</title>
+  <meta name="description" content="The tragic story of EveryTrail's decline, and a Python tool I wrote to download my EveryTrail trips, including GPS data, story, and photos.">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://warkmilson.com/2015/03/27/exporting-from-everytrail.html">
+  <link rel="alternate" type="application/rss+xml" title="wark milson" href="http://warkmilson.com/feed.xml" />
+
+  <meta property="og:image" content="http://warkmilson.com/assets/everytrail/village-hopping.jpg" />
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/"><span class="rotate">w</span>ark <span class="rotate">m</span>ilson</a>
+
+    <nav class="site-nav">
+      <div class="trigger">
+        
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Exporting from EveryTrail</h1>
+    <p class="post-meta">Mar 27, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <p><em>Looking for the data export tool without the tear-jerking narrative? <a href="https://github.com/mddub/everytrail_export">Go straight to the instructions.</a></em></p>
+
+<h2 id="using-everytrail">Using EveryTrail</h2>
+
+<p>Back in 2010, <a href="http://www.everytrail.com">EveryTrail</a> was <em>the</em> site to use if you wanted to find an awesome set of GPS tracks to follow for a hike. My first (and fondest) memory of it is <a href="http://www.everytrail.com/view_trip.php?trip_id=333882">an absolutely epic village-hopping hike</a> tracked by EveryTrail user <a href="http://www.everytrail.com/my_trips.php?user_id=33256">ebrunach</a> in Anhui, China. Before setting off, we downloaded the trail to our phones, which included not only the route, but also geotagged photos, a play-by-play text summary of the sights, and annotated waypoints like “start of jungle.”</p>
+
+<p>Over two days and three charged phone batteries, my friends and I faithfully monitored our screens and followed the route they spelled out. A few times, we lost the trail, and had to backtrack to realign our blue location dot with ebrunach’s sinuous, improbable path, leading us through jungly hills, quiet farming valleys, and weathered trade roads. At the summit of one of those hills, we stopped to gaze across the vast green panorama stretching from the village where we’d stayed to our next destination village. It was then, marveling at how effortlessly this seemingly undocumentable adventure had been made available to us, when we first truly felt the power of this tool.</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/everytrail/village-hopping.jpg" alt="Trekking among villages in Anhui, China" />
+  
+    <figcaption>Trekking among villages in Anhui, China</figcaption>
+  
+</figure>
+
+<p>My favorite way to use EveryTrail has always been their <a href="http://www.everytrail.com/world_map.php">World Map</a>, which can be zoomed in anywhere to find tracked activities. Virtually every corner of the earth abounds with trails contributed by the community. For my part, I’ve documented a modest collection of <a href="http://www.everytrail.com/my_trips.php?user_id=154142">my own hiking and backpacking trips</a>.</p>
+
+<h2 id="leaving-everytrail">Leaving EveryTrail</h2>
+
+<p>TripAdvisor <a href="http://techcrunch.com/2011/02/03/tripadvisor-buys-trip-planning-service-everytrail-to-expand-mobile-offering/">acquired EveryTrail in 2011</a>, and thereafter apparently abandoned it: EveryTrail’s <a href="https://twitter.com/everytrail">Twitter account</a> hasn’t posted an update in a year and a half, links on EveryTrail’s homepage to their <a href="http://blog.everytrail.com/">blog</a> and <a href="http://www.everytrail.com/forum">forum</a> go nowhere, and entire TripAdvisor support threads are dedicated to <a href="http://www.tripadvisor.com/ShowTopic-g1-i12105-k7120338-Where_How_can_I_get_support_answer_regarding_Everytrail-TripAdvisor_Support.html">the inability to get support for EveryTrail</a>.</p>
+
+<p>While EveryTrail’s rich database has endured, its website and app have predictably declined in utility. These days, when tracking hikes, I record using <a href="http://runkeeper.com/">RunKeeper</a> then upload the resulting GPX file to EveryTrail (EveryTrail’s app is a comparative battery hog and has crashed while tracking). When following someone else’s trail, I download the raw data from EveryTrail and import it to an app like <a href="http://alpinequest.psyberia.net/">AlpineQuest</a> (which provides more useful tools mid-hike such as distance traveled, elevation, and multiple map tiles).</p>
+
+<p>Nonetheless, EveryTrail remains the most comprehensive site on the web to find and view trails. As the creator of Gaia GPS, another GPS app, <a href="http://blog.gaiagps.com/everytrail-vs-alltrails/">concluded in 2014</a>, “using EveryTrail feels a little dated, but in terms of data there is still no better compendium than EveryTrail.” I’ve continued contributing my hikes, many with <a href="http://www.everytrail.com/view_trip.php?trip_id=2022884">trip notes</a> and <a href="http://www.everytrail.com/view_trip.php?trip_id=2671553">photos</a>, because it’s the most effective platform for others to find and enjoy the same routes.</p>
+
+<p>I could deal with the aging interface and clunky transfer methods so long as EveryTrail continued to serve that role as a platform. But in recent months, the site’s availability has been spotty, sometimes <a href="http://www.isitdownrightnow.com/everytrail.com.html">going down for days at a time</a>. Even the individual trip page, which previously included graphs and photos on the map, has regressed (or broken) so that it displays far less information.<sup id="fnref:1"><a href="#fn:1" class="footnote">1</a></sup> The final straw was when, earlier this year, some friends and I wanted to repeat <a href="http://www.everytrail.com/view_trip.php?trip_id=1741278">our favorite river-tracing trail</a>, which we’d discovered and tracked so long ago that it happened to be saved only on EveryTrail. The site was down for days, leaving us hanging until it came back up the morning when we were leaving.</p>
+
+<p>I realized it’s only a matter of time before I lose access to everything I’ve stored there: not merely my GPS data, but also many trip notes and selections of photos which I haven’t stored elsewhere.</p>
+
+<h2 id="getting-my-data-out">Getting my data out</h2>
+
+<p>I wrote <strong><a href="https://github.com/mddub/everytrail_export">a Python script</a></strong> which scrapes an EveryTrail trip page and saves its data. Using this script just automates a series of copy-and-paste and save-link-as operations that I would otherwise do by hand, which is consistent with their Terms of Service.<sup id="fnref:2"><a href="#fn:2" class="footnote">2</a></sup></p>
+
+<p>Since this script relies on a specific layout of the trip page, an update on EveryTrail’s end could easily break it. But let’s be real, what are the odds of that happening?</p>
+
+<p><strong><a href="https://github.com/mddub/everytrail_export">The code is on GitHub</a></strong>, along with instructions to install and run the script.</p>
+
+<h3 id="passing-the-login-cookie-from-web-browser-to-scraper">Passing the login cookie from web browser to scraper</h3>
+
+<p>The only real gotcha is that <strong>you must be logged into EveryTrail in order to download a trip’s GPX file.</strong> This is where the <code>--trailauth</code> option comes in. I first log into EveryTrail as usual on my web browser, which causes EveryTrail to set a cookie called <code>TRAILAUTH</code> to keep me logged in. I then <a href="http://www.wikihow.com/View-Cookies">find the value of that cookie</a> and pass it to the script. It can thereby download the GPX files as if logged in as me.</p>
+
+<h3 id="downloading-a-trip-or-three">Downloading a trip or three</h3>
+
+<p>Here’s what it looks like to download a single trip:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>$ everytrail_export 2671553 --trailauth d9b61ab30a10...
+Trip 1/1:
+Downloading http://www.everytrail.com/view_trip.php?trip_id=2671553
+  Ventana Double Cone loop - Big Sur - California, United States
+  Saved trails/2671553-ventana-double-cone-loop-big-s/title.txt
+  Saved trails/2671553-ventana-double-cone-loop-big-s/info.html
+  Saved trails/2671553-ventana-double-cone-loop-big-s/stats.html
+  Saving GPX and KML files...
+  Downloading http://www.everytrail.com/downloadGPX.php?trip_id=2671553
+  Saved trails/2671553-ventana-double-cone-loop-big-s/2671553.gpx
+  Downloading http://www.everytrail.com/downloadKML.php?trip_id=2671553
+  Saved trails/2671553-ventana-double-cone-loop-big-s/2671553.kmz
+  Downloading photos page: http://www.everytrail.com/trip_pictures.php?trip_id=2671553&amp;code=
+  Photo 1/21:
+    Downloading photo info page: http://www.everytrail.com/view_picture.php?trip_id=2671553&amp;picture_id=7004037
+----- Response came back with HTTP status 502; trying again... -----
+    Finding full photo: http://www.everytrail.com/picture/vieworiginal?picture_id=7004037
+    Downloading full photo: http://images.everytrail.com/pics/original/7004037-IMG_7611.jpg
+    Saved &quot;Setting off&quot; to trails/2671553-ventana-double-cone-loop-big-s/images/7004037-IMG_7611.jpg
+...
+  Photo 21/21:
+    Downloading photo info page: http://www.everytrail.com/view_picture.php?trip_id=2671553&amp;picture_id=7004057
+    Finding full photo: http://www.everytrail.com/picture/vieworiginal?picture_id=7004057
+----- Response came back with HTTP status 502; trying again... -----
+    Downloading full photo: http://images.everytrail.com/pics/original/7004057-IMG_7805.jpg
+    Saved &quot;Stream crossing&quot; to trails/2671553-ventana-double-cone-loop-big-s/images/7004057-IMG_7805.jpg
+  Saved trails/2671553-ventana-double-cone-loop-big-s/photo_info.json</code></pre></figure>
+
+<p>Yes, those 502s are fairly typical. We’re not a moment too soon…</p>
+
+<p>Downloading trips is also possible via trip page URL rather than trip ID:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>$ everytrail_export \
+    http://www.everytrail.com/view_trip.php?trip_id=2671553 \
+    http://www.everytrail.com/view_trip.php?trip_id=2991898 \
+    http://www.everytrail.com/view_trip.php?trip_id=2348794 \
+    --trailauth d9b61ab30a10...</code></pre></figure>
+
+<h3 id="downloading-all-my-trips-at-once">Downloading all my trips at once</h3>
+
+<p>Rather than specify the URL for each trip individually, the <code>--trips-page</code> option scrapes my <a href="http://www.everytrail.com/my_trips.php?user_id=154142">trips page</a> for them:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>$ everytrail_export \
+    --trips-page http://www.everytrail.com/my_trips.php?user_id=154142 \
+    --trailauth d9b61ab30a10...
+<span class="hll">Scraping http://www.everytrail.com/my_trips.php?user_id=154142 for trip URLs...
+</span><span class="hll">Found links to 15 trips: 1550019 1673357 1693258 1733157 1741278 1820769 1924844 1924847 2022884 2053816 2108623 2301920 2348794 2671553 2991898
+</span>Trip 1/15:
+Downloading http://www.everytrail.com/view_trip.php?trip_id=1550019
+  El Corte de Madera Creek Trail - California, United States
+...</code></pre></figure>
+
+<h2 id="mourning-everytrail">Mourning EveryTrail</h2>
+
+<p>There are many people who have put much more energy than I have into tracking routes, writing trip stories, captioning photos, and marking waypoints. EveryTrail is a genuinely revolutionary platform in that it has encouraged tens of thousands to compile their outdoor experiences for the world.<sup id="fnref:3"><a href="#fn:3" class="footnote">3</a></sup> It would be a great shame if, along with EveryTrail, all those trips were to <a href="http://en.wikipedia.org/wiki/Link_rot">rot and die</a>, unavailable to share with friends, never to be discovered by new travelers.</p>
+
+<p>There are <a href="http://alternativeto.net/software/everytrail/?platform=online">plenty of alternatives</a> solving the same problems as EveryTrail, and I will migrate to one eventually. <a href="http://www.wikiloc.com/">Some of them</a> show <a href="https://www.gaiagps.com/">serious promise</a>, and some can even <a href="http://triptrack.org/">import from EveryTrail</a>. Still, none has reached the same critical mass, and all have the potential to remain siloed in the same way.</p>
+
+<h2 id="whats-next">What’s next</h2>
+
+<p>I designed this export tool with the goal of capturing as much raw data as someone would need to republish their routes with the same degree of detail elsewhere. EveryTrail did a great job presenting my trips, but they are ultimately my property. Anyone who has put energy into creating trip content should have a straightforward way of sharing it with others, while retaining faith in its continued existence.</p>
+
+<p>I’m still exploring what that might look like.</p>
+
+<p>A simple first step, which solves the problems of ownership and hosting, is to build a tool which converts the exported EveryTrail data into a self-contained static site which can be hosted somewhere like <a href="https://neocities.org/">Neocities</a>. The problems of indexing and discovery would remain unsolved.</p>
+
+<p>In a utopian future world, a single format, probably endorsed by the <a href="http://en.wikipedia.org/wiki/Open_Geospatial_Consortium">OGC</a>, will emerge as the standard for representing anything from <a href="http://www.strava.com/">bike races</a> to <a href="http://www.ramblr.com/">photo-annotated travel logs</a>, and all sites will support free import and export of that format. When we live in that world, extending this script to synthesize all its output in that format will be a trivial task.</p>
+
+<p>Stay tuned for part 2. If you have ideas about this, <a href="mailto:mark@warkmilson.com">I’d love to hear from you</a>.</p>
+
+<div class="footnotes">
+  <ol>
+    <li id="fn:1">
+      <p>The map for a trip <a href="http://www.everytrail.com/view_trip.php?trip_id=2671553">like this one</a> would previously show a graph <a href="http://warkmilson.com/assets/everytrail/example-graph-2671553.png">like this</a>, or alternatively play a slideshow of photos demonstrating their locations along the trail, but now neither feature is present. The <a href="http://www.everytrail.com/fullscreen.php?trip_id=2671553">“fullscreen” view</a> appears to still have controls for those features, but it hangs on the loading screen and displays nothing. <a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
+    </li>
+    <li id="fn:2">
+      <p>EveryTrail’s <a href="http://www.everytrail.com/tos.php">Terms of Service</a> state that the company (1) “does not claim ownership of User Content you submit or make available for inclusion on the Service, except as specifically provided otherwise” and grants a (2) “license to access and use the Web Sites and electronically copy (except where prohibited without a license) and print to hard copy portions of the Site Materials for your informational, non-commercial and personal use only.” This license excludes (3) “use of any data mining, robots or similar data gathering or extraction methods.” I am downloading only my data, which I own, strictly for personal use. Doing so means accessing a specific, bounded subset of the site, rather than crawling links deeply to discover and gather content as the terms “data mining” and “robots” imply. <a href="#fnref:2" class="reversefootnote">&#8617;</a></p>
+    </li>
+    <li id="fn:3">
+      <p>I have no idea how many EveryTrail users have actually contributed trips, at least not without writing a scraper which much more clearly violates their Terms of Service. But a few manual iterations of <a href="http://www.evanjones.ca/encrypted-db-ids.html">changing the URL</a> to find the maximum valid user ID suggest that they have just about three million users. A very rough estimate using the <a href="http://en.wikipedia.org/wiki/1%25_rule_%28Internet_culture%29">90-9-1 principle</a> is that 30,000 users have contributed trips. <a href="#fnref:3" class="reversefootnote">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-55947759-1', 'auto');
+      ga('send', 'pageview');
+    </script>
+  </body>
+
+</html>

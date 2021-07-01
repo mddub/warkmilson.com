@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Outsmarting My Inbox</title>
+  <meta name="description" content="To reclaim my mindfulness from my inbox, I've made several tweaks to my technological environment.">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://warkmilson.com/2015/07/15/outsmarting-my-inbox.html">
+  <link rel="alternate" type="application/rss+xml" title="wark milson" href="http://warkmilson.com/feed.xml" />
+
+  <meta property="og:image" content="http://warkmilson.com/assets/email-addiction/iphone-screens.png" />
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/"><span class="rotate">w</span>ark <span class="rotate">m</span>ilson</a>
+
+    <nav class="site-nav">
+      <div class="trigger">
+        
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Outsmarting My Inbox</h1>
+    <p class="post-meta">Jul 15, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <p>In <a href="http://warkmilson.com/2015/05/15/three-years-of-logging-my-inbox-count.html">Three Years of Logging My Inbox Count</a>, I discovered that beneath my relationship with my inbox count lay dark, compulsive email habits. In this post, I will describe a few interventions that I’ve introduced to reclaim my attention.</p>
+
+<h2 id="weakening-the-action-reward-link">Weakening the action-reward link</h2>
+
+<p>In <a href="http://mindhacks.com/2006/09/19/why-email-is-addictive-and-what-to-do-about-it/">Why Email Is Addictive</a>, Tom Stafford of <em>Mind Hacks</em> explains the root of email’s addictiveness:</p>
+
+<blockquote>
+  <p>Checking email is a behaviour that has <strong>variable interval reinforcement</strong>. Sometimes, but not everytime, the behaviour produces a reward… Because you can never tell which time you check will produce the reward, checking all the time is reinforced, even if most of the time checking your email turns out to have been pointless.</p>
+</blockquote>
+
+<p>He suggests that one way to weaken this association is to introduce a delay between the action of checking email and the reward of possible novelty. I do this using a Firefox extension called <a href="https://addons.mozilla.org/en-US/firefox/addon/leechblock/">LeechBlock</a>, which forces me to sit through this screen for 30 seconds before Gmail loads:</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/email-addiction/leechblock.png" alt="LeechBlock forcing me to reflect on what I'm doing with my life before I can access my email." />
+  
+    <figcaption>LeechBlock forcing me to reflect on what I'm doing with my life before I can access my email.</figcaption>
+  
+</figure>
+
+<p>How effective has this been? It’s too early to draw any real conclusions, so I am far from pronouncing my inbox problem solved. Early data on my computer usage from <em>Time Sink</em> is encouraging, though:</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/email-addiction/leechblock-attempts.png" alt="Graph demonstrating the outcome of each day's attempts to access Gmail." />
+  
+</figure>
+
+<p>After an initial breaking-in period, I now attempt to access Gmail fewer than 8 times on most days, and I have achieved several days of relative mindfulness, on which I made only 1-2 deliberate visits to Gmail. Meanwhile, the thrashings of email addiction, which manifest as periodic tall spikes, betray a detox not yet complete.</p>
+
+<h2 id="making-email-less-available-on-my-phone">Making email less available on my phone</h2>
+
+<p>Along the same lines as delaying access on desktop, I’ve hidden email deep in a folder on the last screen of apps on my iPhone. This forces a momentary existential examination of whether I <em>really</em> need to be checking email. (This was inspired by Jake Knapp’s <a href="https://medium.com/life-hacks/my-year-with-a-distraction-free-iphone-and-how-to-start-your-own-experiment-6ff74a0e7a50">distraction-free iPhone</a>. I haven’t gone all the way to “distraction-free” because, often enough, I still need the ability to search email on my phone.)</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/email-addiction/iphone-screens.png" alt="A few moments of forced self-awareness before checking email on my phone." class="bordered" />
+  
+    <figcaption>A few moments of forced self-awareness before checking email on my phone.</figcaption>
+  
+</figure>
+
+<h2 id="auto-expiring-emails-with-google-apps-script">Auto-expiring emails with Google Apps Script</h2>
+
+<p>Some emails prompt me to think, “I’d like to read that! Just not right now.” I’ve found that <strong>auto-expiring emails</strong> is a great trick to remind myself how ephemeral that kind of input is. I set up a Gmail filter which automatically applies the “x3” label to certain types of email. This means “expires in 3 days”:</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/email-addiction/auto-expiring.png" alt="Automatic, guilt-free expiration of certain emails in my inbox." class="bordered" />
+  
+    <figcaption>Automatic, guilt-free expiration of certain emails in my inbox.</figcaption>
+  
+</figure>
+
+<p>I wrote <a href="https://github.com/mddub/google-apps-scripts">a Google Apps script</a> which runs at the end of every day, moving each email one step forward towards expiration. If an email has reached label “x0” and is still in my inbox, it is automatically archived. On the one hand, this flow manufactures urgency to discourage me from procrastinating on making a decision about this kind of input. On the other hand, the disappearance means that it never piles up, absolving me of the stress I would otherwise feel when I do procrastinate.</p>
+
+<p>Find <a href="https://github.com/mddub/google-apps-scripts">my script with setup instructions on GitHub</a>.</p>
+
+<h2 id="forcing-review-of-to-dos-with-beeminder">Forcing review of to-dos with Beeminder</h2>
+
+<p>The reason for my habit of leaving things in my inbox is that it’s the only place where I trust I will revisit them. When I’ve tried <em>GTD</em>-style processing of my inbox into a to-do list, I eventually end up not checking the list often enough. As a result, the list actually becomes a graveyard. To counteract this, I have a <a href="https://www.beeminder.com/">Beeminder</a> goal: “Do one thing I’m procrastinating on each day.” The size of the task is unimportant, but the fact that I’ve been putting the task off for at least a couple days is. Often enough, I need to check my to-do list to remember what I’ve been putting off.</p>
+
+<p>This goal has enabled me to move certain things out of my inbox and into a to-do list, like a grown-up. The threat of paying money if I fall behind is the first “life hack” that has resulted in me actually reviewing my to-do list with some regularity. With 8 months of compliance under my belt, I’m cautiously optimistic for the future:</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/email-addiction/beeminder-procrastinating.png" alt="8 months of &quot;Do one thing I'm procrastinating on each day.&quot;" class="bordered" />
+  
+    <figcaption>8 months of &quot;Do one thing I'm procrastinating on each day.&quot;</figcaption>
+  
+</figure>
+
+<h2 id="snoozing-emails">Snoozing emails</h2>
+
+<p>One category of email is tasks which I don’t know what to do about now, but will know what to do about in the future. I use <a href="http://www.boomeranggmail.com/">Boomerang</a> (on desktop) and <a href="https://www.followupthen.com/">FollowUpThen</a> (on mobile) to schedule those emails to reappear when I am able to deal with them. (Google’s <a href="http://www.google.com/inbox/">Inbox</a> has this feature, as well.) Fair warning: this power is easy to abuse.</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/email-addiction/boomerang.png" alt="Perhaps too-sharp tools to defer making a decision on an email until a later date." />
+  
+    <figcaption>Perhaps too-sharp tools to defer making a decision on an email until a later date.</figcaption>
+  
+</figure>
+
+<h2 id="preventing-procrastination-with-beeminder">Preventing procrastination with Beeminder</h2>
+
+<p><strong>[Update, June 2016]</strong> I’ve had great success with a <a href="https://www.beeminder.com/">Beeminder goal</a> to limit the age of the oldest message in my inbox. If I let a message sit in my inbox for more than 7 days, Beeminder will charge me money. This effectively means that every message has an expiration date. I don’t necessarily need to respond to each email before it expires, but I do need to decide what action to take (even if it’s “don’t respond”) and remove it from my inbox.</p>
+
+<p>You can use my <a href="https://github.com/mddub/google-apps-scripts">Google Apps script</a> to log the age of the oldest message to a Google Spreadsheet, then use <a href="https://zapier.com/">Zapier</a> to connect the spreadsheet to Beeminder. One unexpected benefit is this neat visualization of how I manage <em>oldest email age</em> as it inexorably drifts towards the limit:</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/email-addiction/beeminder-oldest-email.png" alt="Using monetary incentives to keep the age of the oldest message in my inbox below 24, then 14, then 7 days." class="bordered" />
+  
+    <figcaption>Using monetary incentives to keep the age of the oldest message in my inbox below 24, then 14, then 7 days.</figcaption>
+  
+</figure>
+
+<h2 id="more-extreme-solutions">More extreme solutions</h2>
+
+<p>Some more extreme interventions are on my radar, in case the need arises:</p>
+
+<ul>
+  <li>
+    <p>Set a Gmail filter to automatically archive an email as soon as it is marked as read. This forces an immediate decision since you only get one chance to view an email before it disappears from your inbox.</p>
+  </li>
+  <li>
+    <p>Implement <a href="http://www.yesterbox.com/">Tony Hsieh’s “Yesterbox” system</a>, which involves filtering today’s emails out of your inbox view. This way, when you treat your inbox as a to-do list, you focus on a bounded set of tasks (yesterday’s inbox, hence “Yesterbox”), and avoid the distracting and discouraging accumulation of new emails as you address the old ones.</p>
+  </li>
+  <li>
+    <p>Hire a digital assistant to <a href="http://hackthesystem.com/blog/the-email-management-system-that-saved-my-life/">read your email and manage it on your behalf via spreadsheet</a>. (If I ever get enough email to justify this, I may have to re-evaluate my life first.)</p>
+  </li>
+  <li>
+    <p>Forego email entirely, <a href="http://www-cs-faculty.stanford.edu/~uno/email.html">as computer science legend Donald Knuth has</a>:</p>
+
+    <blockquote>
+      <p>Email is a wonderful thing for people whose role in life is to be on top of things. But not for me; my role is to be on the bottom of things. What I do takes long hours of studying and uninterruptible concentration.</p>
+    </blockquote>
+  </li>
+</ul>
+
+<h2 id="your-mileage-may-vary">Your mileage may vary</h2>
+
+<p>What works for me may not work for you. Each person must find their own unique blend of self-trickery to counteract negative habits like <a href="http://warkmilson.com/2015/05/15/three-years-of-logging-my-inbox-count.html">email addiction and procrastination</a>. Since it is technology that created my problem, my first inclination is to use technology to reverse it. These are my initial adjustments.</p>
+
+<p>In addition to changing one’s environment and counteracting one’s triggers, though, making peace with email requires an even more personal process of cultivating attention. The <a href="https://www.google.com/search?q=%22inbox+zero%22">300,000 Google results for “inbox zero”</a> almost all describe systems of mental discipline to maintain control over one’s attention.</p>
+
+<p>Merlin Mann is often credited with popularizing the philosophy of “Inbox Zero.” In one of his most insightful (and discursory) videos, <a href="https://vimeo.com/7192517">“Makebelieve Help, Old Butchers, and Figuring Out Who You Are (For Now)”</a>, he emphasizes the existential challenge of finding your intentions in an environment which is constantly trying to redirect them:</p>
+
+<blockquote>
+  <p>You’re checking your email on some level… to figure out who you need to be today. <strong>(5:40)</strong></p>
+
+  <p>None of these systems are gonna save you. There’s no diagram, no system, no pen, no notebook, no nothing. It’s harrowing. This is some Kierkegaard-level shit going on. You’re going to have to figure out who you are every day. <strong>(35:42)</strong></p>
+</blockquote>
+
+<p>I’m now more aware of the power of email to leech my attention, and I have an initial cocktail of countermeasures to weaken that power. But that’s the easy part. Remaining mindful of how I <em>want</em> to spend my time and attention, and keeping it from slipping down yet another abyss, is where the real work starts.</p>
+
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-55947759-1', 'auto');
+      ga('send', 'pageview');
+    </script>
+  </body>
+
+</html>

@@ -1,0 +1,686 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>wark milson</title>
+    <description></description>
+    <link>http://warkmilson.com/</link>
+    <atom:link href="http://warkmilson.com/feed.xml" rel="self" type="application/rss+xml"/>
+    <pubDate>Tue, 21 Jul 2020 08:16:08 -0700</pubDate>
+    <lastBuildDate>Tue, 21 Jul 2020 08:16:08 -0700</lastBuildDate>
+    <generator>Jekyll v3.6.2</generator>
+    
+      <item>
+        <title>Displaying Tags on Mint Transactions</title>
+        <description>&lt;p&gt;I’ve used &lt;a href=&quot;https://www.mint.com/&quot;&gt;Mint.com&lt;/a&gt; to categorize and measure my spending for years. It is an amazing tool, but the user interface for tagging transactions has always had a frustrating limitation. After adding a tag to a transaction, you don’t see that tag anywhere on the page. I wrote a user script to display them:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/mint-tags-display/transactions-with-tags.png&quot; alt=&quot;Mint.com transactions listing with tags visible&quot; /&gt;
+  
+&lt;/figure&gt;
+
+&lt;h2 id=&quot;how-do-i-install-it&quot;&gt;How do I install it?&lt;/h2&gt;
+
+&lt;p&gt;Follow the (very short) &lt;a href=&quot;https://github.com/mddub/mint-tags-display&quot;&gt;installation instructions on GitHub&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;why-is-this-necessary&quot;&gt;Why is this necessary?&lt;/h2&gt;
+
+&lt;p&gt;On Mint, a transaction must belong to one category (for example, &lt;strong&gt;Vacation&lt;/strong&gt; or &lt;strong&gt;Restaurants&lt;/strong&gt;). At the same time, a transaction may belong to any number of tags (for example, I can add the &lt;strong&gt;Taiwan trip&lt;/strong&gt; tag to an expense in the &lt;strong&gt;Vacation&lt;/strong&gt; category, or add &lt;strong&gt;Work lunch&lt;/strong&gt; and &lt;strong&gt;Client X&lt;/strong&gt; tags to an expense in the &lt;strong&gt;Restaurants&lt;/strong&gt; category). The way I use Mint, categories and tags are both important to gaining a complete understanding of where my money goes. Unfortunately, in the transactions list (above), only categories are displayed.&lt;/p&gt;
+
+&lt;p&gt;The only time you ever see what tags you have applied to a transaction is when you are editing it:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/mint-tags-display/edit-transaction-dialog.png&quot; alt=&quot;The only part of Mint's interface where tags are visible.&quot; /&gt;
+  
+    &lt;figcaption&gt;The only part of Mint's interface where tags are visible.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;I’m baffled that the tags feature has such a &lt;a href=&quot;https://mint.lc.intuit.com/questions/981133-is-there-a-way-to-show-a-tags-column-in-the-transactions-page&quot;&gt;glaring omission in functionality&lt;/a&gt;… so I wrote a user script to fix it.&lt;/p&gt;
+
+&lt;h2 id=&quot;how-does-it-work&quot;&gt;How does it work?&lt;/h2&gt;
+
+&lt;p&gt;A user script is a piece of JavaScript code which your browser includes on certain web pages. In this case, I’ve written code which alters the way that the Mint.com transactions page works. I want to see what data my browser is requesting from Mint’s servers, find the transaction tags within that data, store a temporary copy of them, and insert the tags into the page.&lt;/p&gt;
+
+&lt;h3 id=&quot;find-xhr-responses-containing-transaction-data&quot;&gt;Find XHR responses containing transaction data&lt;/h3&gt;
+
+&lt;p&gt;The first step is to &lt;a href=&quot;http://debugbrowser.com/&quot;&gt;use my browser’s developer tools&lt;/a&gt; to watch the traffic on the transactions page. When the page loads, the Mint app makes many requests: images, JavaScript code, and data. I’m interested only in what &lt;em&gt;data&lt;/em&gt; is being sent, so I filter the requests to show only XHR:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/mint-tags-display/mint-all-xhr-requests.png&quot; alt=&quot;XHR requests made by the Mint app on page load.&quot; /&gt;
+  
+    &lt;figcaption&gt;XHR requests made by the Mint app on page load.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;I notice that the Mint app makes a request to &lt;code&gt;getJsonData.xevent&lt;/code&gt; on every page load. To investigate, I try loading different transactions into the page by clicking “Next” at the bottom of the transactions list, or by performing a transaction search. Each time, another request is made to that URL. Filtering the requests to show only those for this URL, and inspecting the content of the responses, confirms that the list of transactions is included in this data. Digging deeper into the structure of the data, I can find how the “labels” for each transaction are represented:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/mint-tags-display/mint-getjsondata-requests.png&quot; alt=&quot;The structure of the data sent back for a request to /getJsonData.xevent.&quot; /&gt;
+  
+&lt;/figure&gt;
+
+&lt;h3 id=&quot;overwrite-the-browsers-xhr-code-to-intercept-the-data&quot;&gt;Overwrite the browser’s XHR code to intercept the data&lt;/h3&gt;
+
+&lt;p&gt;The above AJAX requests are made every time the transactions page loads. JavaScript allows a developer to overwrite the base AJAX request function which is used by all other code on a page (including Mint’s own code) to obtain data from the server. I can replace that function with my own code, then look for completed requests made to the &lt;code&gt;getJsonData.xevent&lt;/code&gt; endpoint. Then my code can store its own copy of the data before the Mint app even sees it.&lt;/p&gt;
+
+&lt;p&gt;I overwrite the &lt;code&gt;XMLHttpRequest.prototype.open&lt;/code&gt; method to run my code first, and then call the browser’s original version of the method. This allows me to inspect every request:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;XMLHttpRequest&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;prototype&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;open&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// Add a listener for state changes on any request.&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;addEventListener&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;readystatechange&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+
+      &lt;span class=&quot;c1&quot;&gt;// Any time a request changes to the completed state, and the request URL&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// indicates it was for transaction data, store the data.&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;readyState&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;===&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;responseURL&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;getJsonData.xevent&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;maybeInterceptTransactionsList&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;responseText&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;},&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;false&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;c1&quot;&gt;// Call the original XMLHttpRequest.prototype.open.&lt;/span&gt;
+    &lt;span class=&quot;nx&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;XMLHttpRequest&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;prototype&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;react-to-changes-in-the-content-of-the-transactions-table&quot;&gt;React to changes in the content of the transactions table&lt;/h3&gt;
+
+&lt;p&gt;Next, I need to use the data stored by the code above to add the tags to the transactions table. I can’t simply add them as soon as the data arrives, because the Mint app needs a chance to process that data and populate the table with it. A hacky way to do this would be to use &lt;code&gt;setTimeout&lt;/code&gt; or &lt;code&gt;setInterval&lt;/code&gt; to check the transactions table every few seconds to see if it’s changed, and add/remove tags as necessary. But there’s a better way: the &lt;a href=&quot;https://hacks.mozilla.org/2012/05/dom-mutationobserver-reacting-to-dom-changes-without-killing-browser-performance/&quot;&gt;MutationObserver API&lt;/a&gt;. This is a &lt;a href=&quot;http://caniuse.com/#feat=mutationobserver&quot;&gt;new-ish&lt;/a&gt; browser API, almost tailor-made for the use case of third-party code watching for changes to the DOM.&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;MutationObserver&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;mutations&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;mutations&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;forEach&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;mutation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// When the text in an element of the table changes, find the row it belongs to,&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// and add/remove tags for that transaction. It helps that the table rows we are&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// interested in have ids like &amp;#39;transaction-743382659&amp;#39;.&lt;/span&gt;
+    &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$tr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;jQuery&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;mutation&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;target&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;parents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;tr&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;first&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;();&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;$tr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;length&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$tr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;id&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;$tr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;attr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;id&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;indexOf&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;transaction-&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;===&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+      &lt;span class=&quot;nx&quot;&gt;updateRowWithTags&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;$tr&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;});&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}).&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;observe&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;
+  &lt;span class=&quot;nb&quot;&gt;document&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;querySelector&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;#transaction-list-body&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;),&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// We&amp;#39;re interested in mutations to the child nodes of the transactions table,&lt;/span&gt;
+  &lt;span class=&quot;c1&quot;&gt;// but only characterData mutations, i.e. &amp;quot;some text has changed&amp;quot;.&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;subtree&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;childList&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;characterData&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;kc&quot;&gt;true&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;react-to-the-user-editing-a-transaction&quot;&gt;React to the user editing a transaction&lt;/h3&gt;
+
+&lt;p&gt;It turns out that I can’t respond only to changes to the transactions table (triggered by navigating between pages of transactions or a search). I also need to update the table after the user edits a transaction. For this, the code must intercept XHR &lt;em&gt;requests&lt;/em&gt;, so that it can spy on POSTs to the edit transaction endpoint (just as it spied on XHR &lt;em&gt;responses&lt;/em&gt; for the transaction list above).&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-javascript&quot; data-lang=&quot;javascript&quot;&gt;&lt;span&gt;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+  &lt;span class=&quot;nx&quot;&gt;XMLHttpRequest&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;prototype&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;open&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;c1&quot;&gt;// If the Mint app makes a POST request to the &amp;quot;update transaction&amp;quot; endpoint...&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;if&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;sr&quot;&gt;/post/i&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;].&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;match&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s1&quot;&gt;&amp;#39;updateTransaction.xevent&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+
+      &lt;span class=&quot;c1&quot;&gt;// Overwrite the `send` method of this request to store a copy of the data&lt;/span&gt;
+      &lt;span class=&quot;c1&quot;&gt;// before it gets sent.&lt;/span&gt;
+      &lt;span class=&quot;kd&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;self&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;send&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+      &lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;send&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kd&quot;&gt;function&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;interceptTransactionEdit&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]);&lt;/span&gt;
+
+        &lt;span class=&quot;c1&quot;&gt;// Call the original `send` method.&lt;/span&gt;
+        &lt;span class=&quot;nx&quot;&gt;send&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;self&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+      &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;nx&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;apply&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;this&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;nx&quot;&gt;arguments&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+  &lt;span class=&quot;p&quot;&gt;};&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;})(&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;XMLHttpRequest&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;prototype&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nx&quot;&gt;open&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;it-doesnt-take-much-code&quot;&gt;It doesn’t take much code&lt;/h3&gt;
+
+&lt;p&gt;The final code is a bit more nuanced than just the above. For example, Mint makes a separate request for a mapping from tag ID to tag name, which also must be cached. When Mint updates the transactions table, it actually triggers multiple DOM mutation events for each row (one each for date, merchant, price, etc.), so the code must be smart enough to update each row only once. Also, observing the DOM must be paused while the user script itself mutates the DOM by adding tags.&lt;/p&gt;
+
+&lt;p&gt;Nonetheless, the full code to add this functionality is fewer than 200 lines of readable, whitespace-heavy JavaScript. Adding a browser extension like this requires trust, so &lt;a href=&quot;https://github.com/mddub/mint-tags-display/blob/master/mint-tags-display.user.js&quot;&gt;read through the code yourself on GitHub!&lt;/a&gt;&lt;/p&gt;
+
+</description>
+        <pubDate>Fri, 18 Sep 2015 00:00:00 -0700</pubDate>
+        <link>http://warkmilson.com/2015/09/18/displaying-tags-on-mint-transactions.html</link>
+        <guid isPermaLink="true">http://warkmilson.com/2015/09/18/displaying-tags-on-mint-transactions.html</guid>
+        
+        <category>mint</category>
+        
+        <category>userscript</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Outsmarting My Inbox</title>
+        <description>&lt;p&gt;In &lt;a href=&quot;http://warkmilson.com/2015/05/15/three-years-of-logging-my-inbox-count.html&quot;&gt;Three Years of Logging My Inbox Count&lt;/a&gt;, I discovered that beneath my relationship with my inbox count lay dark, compulsive email habits. In this post, I will describe a few interventions that I’ve introduced to reclaim my attention.&lt;/p&gt;
+
+&lt;h2 id=&quot;weakening-the-action-reward-link&quot;&gt;Weakening the action-reward link&lt;/h2&gt;
+
+&lt;p&gt;In &lt;a href=&quot;http://mindhacks.com/2006/09/19/why-email-is-addictive-and-what-to-do-about-it/&quot;&gt;Why Email Is Addictive&lt;/a&gt;, Tom Stafford of &lt;em&gt;Mind Hacks&lt;/em&gt; explains the root of email’s addictiveness:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Checking email is a behaviour that has &lt;strong&gt;variable interval reinforcement&lt;/strong&gt;. Sometimes, but not everytime, the behaviour produces a reward… Because you can never tell which time you check will produce the reward, checking all the time is reinforced, even if most of the time checking your email turns out to have been pointless.&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;He suggests that one way to weaken this association is to introduce a delay between the action of checking email and the reward of possible novelty. I do this using a Firefox extension called &lt;a href=&quot;https://addons.mozilla.org/en-US/firefox/addon/leechblock/&quot;&gt;LeechBlock&lt;/a&gt;, which forces me to sit through this screen for 30 seconds before Gmail loads:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/email-addiction/leechblock.png&quot; alt=&quot;LeechBlock forcing me to reflect on what I'm doing with my life before I can access my email.&quot; /&gt;
+  
+    &lt;figcaption&gt;LeechBlock forcing me to reflect on what I'm doing with my life before I can access my email.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;How effective has this been? It’s too early to draw any real conclusions, so I am far from pronouncing my inbox problem solved. Early data on my computer usage from &lt;em&gt;Time Sink&lt;/em&gt; is encouraging, though:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/email-addiction/leechblock-attempts.png&quot; alt=&quot;Graph demonstrating the outcome of each day's attempts to access Gmail.&quot; /&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;After an initial breaking-in period, I now attempt to access Gmail fewer than 8 times on most days, and I have achieved several days of relative mindfulness, on which I made only 1-2 deliberate visits to Gmail. Meanwhile, the thrashings of email addiction, which manifest as periodic tall spikes, betray a detox not yet complete.&lt;/p&gt;
+
+&lt;h2 id=&quot;making-email-less-available-on-my-phone&quot;&gt;Making email less available on my phone&lt;/h2&gt;
+
+&lt;p&gt;Along the same lines as delaying access on desktop, I’ve hidden email deep in a folder on the last screen of apps on my iPhone. This forces a momentary existential examination of whether I &lt;em&gt;really&lt;/em&gt; need to be checking email. (This was inspired by Jake Knapp’s &lt;a href=&quot;https://medium.com/life-hacks/my-year-with-a-distraction-free-iphone-and-how-to-start-your-own-experiment-6ff74a0e7a50&quot;&gt;distraction-free iPhone&lt;/a&gt;. I haven’t gone all the way to “distraction-free” because, often enough, I still need the ability to search email on my phone.)&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/email-addiction/iphone-screens.png&quot; alt=&quot;A few moments of forced self-awareness before checking email on my phone.&quot; class=&quot;bordered&quot; /&gt;
+  
+    &lt;figcaption&gt;A few moments of forced self-awareness before checking email on my phone.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;h2 id=&quot;auto-expiring-emails-with-google-apps-script&quot;&gt;Auto-expiring emails with Google Apps Script&lt;/h2&gt;
+
+&lt;p&gt;Some emails prompt me to think, “I’d like to read that! Just not right now.” I’ve found that &lt;strong&gt;auto-expiring emails&lt;/strong&gt; is a great trick to remind myself how ephemeral that kind of input is. I set up a Gmail filter which automatically applies the “x3” label to certain types of email. This means “expires in 3 days”:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/email-addiction/auto-expiring.png&quot; alt=&quot;Automatic, guilt-free expiration of certain emails in my inbox.&quot; class=&quot;bordered&quot; /&gt;
+  
+    &lt;figcaption&gt;Automatic, guilt-free expiration of certain emails in my inbox.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;I wrote &lt;a href=&quot;https://github.com/mddub/google-apps-scripts&quot;&gt;a Google Apps script&lt;/a&gt; which runs at the end of every day, moving each email one step forward towards expiration. If an email has reached label “x0” and is still in my inbox, it is automatically archived. On the one hand, this flow manufactures urgency to discourage me from procrastinating on making a decision about this kind of input. On the other hand, the disappearance means that it never piles up, absolving me of the stress I would otherwise feel when I do procrastinate.&lt;/p&gt;
+
+&lt;p&gt;Find &lt;a href=&quot;https://github.com/mddub/google-apps-scripts&quot;&gt;my script with setup instructions on GitHub&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;forcing-review-of-to-dos-with-beeminder&quot;&gt;Forcing review of to-dos with Beeminder&lt;/h2&gt;
+
+&lt;p&gt;The reason for my habit of leaving things in my inbox is that it’s the only place where I trust I will revisit them. When I’ve tried &lt;em&gt;GTD&lt;/em&gt;-style processing of my inbox into a to-do list, I eventually end up not checking the list often enough. As a result, the list actually becomes a graveyard. To counteract this, I have a &lt;a href=&quot;https://www.beeminder.com/&quot;&gt;Beeminder&lt;/a&gt; goal: “Do one thing I’m procrastinating on each day.” The size of the task is unimportant, but the fact that I’ve been putting the task off for at least a couple days is. Often enough, I need to check my to-do list to remember what I’ve been putting off.&lt;/p&gt;
+
+&lt;p&gt;This goal has enabled me to move certain things out of my inbox and into a to-do list, like a grown-up. The threat of paying money if I fall behind is the first “life hack” that has resulted in me actually reviewing my to-do list with some regularity. With 8 months of compliance under my belt, I’m cautiously optimistic for the future:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/email-addiction/beeminder-procrastinating.png&quot; alt=&quot;8 months of &amp;quot;Do one thing I'm procrastinating on each day.&amp;quot;&quot; class=&quot;bordered&quot; /&gt;
+  
+    &lt;figcaption&gt;8 months of &amp;quot;Do one thing I'm procrastinating on each day.&amp;quot;&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;h2 id=&quot;snoozing-emails&quot;&gt;Snoozing emails&lt;/h2&gt;
+
+&lt;p&gt;One category of email is tasks which I don’t know what to do about now, but will know what to do about in the future. I use &lt;a href=&quot;http://www.boomeranggmail.com/&quot;&gt;Boomerang&lt;/a&gt; (on desktop) and &lt;a href=&quot;https://www.followupthen.com/&quot;&gt;FollowUpThen&lt;/a&gt; (on mobile) to schedule those emails to reappear when I am able to deal with them. (Google’s &lt;a href=&quot;http://www.google.com/inbox/&quot;&gt;Inbox&lt;/a&gt; has this feature, as well.) Fair warning: this power is easy to abuse.&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/email-addiction/boomerang.png&quot; alt=&quot;Perhaps too-sharp tools to defer making a decision on an email until a later date.&quot; /&gt;
+  
+    &lt;figcaption&gt;Perhaps too-sharp tools to defer making a decision on an email until a later date.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;h2 id=&quot;preventing-procrastination-with-beeminder&quot;&gt;Preventing procrastination with Beeminder&lt;/h2&gt;
+
+&lt;p&gt;&lt;strong&gt;[Update, June 2016]&lt;/strong&gt; I’ve had great success with a &lt;a href=&quot;https://www.beeminder.com/&quot;&gt;Beeminder goal&lt;/a&gt; to limit the age of the oldest message in my inbox. If I let a message sit in my inbox for more than 7 days, Beeminder will charge me money. This effectively means that every message has an expiration date. I don’t necessarily need to respond to each email before it expires, but I do need to decide what action to take (even if it’s “don’t respond”) and remove it from my inbox.&lt;/p&gt;
+
+&lt;p&gt;You can use my &lt;a href=&quot;https://github.com/mddub/google-apps-scripts&quot;&gt;Google Apps script&lt;/a&gt; to log the age of the oldest message to a Google Spreadsheet, then use &lt;a href=&quot;https://zapier.com/&quot;&gt;Zapier&lt;/a&gt; to connect the spreadsheet to Beeminder. One unexpected benefit is this neat visualization of how I manage &lt;em&gt;oldest email age&lt;/em&gt; as it inexorably drifts towards the limit:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/email-addiction/beeminder-oldest-email.png&quot; alt=&quot;Using monetary incentives to keep the age of the oldest message in my inbox below 24, then 14, then 7 days.&quot; class=&quot;bordered&quot; /&gt;
+  
+    &lt;figcaption&gt;Using monetary incentives to keep the age of the oldest message in my inbox below 24, then 14, then 7 days.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;h2 id=&quot;more-extreme-solutions&quot;&gt;More extreme solutions&lt;/h2&gt;
+
+&lt;p&gt;Some more extreme interventions are on my radar, in case the need arises:&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;Set a Gmail filter to automatically archive an email as soon as it is marked as read. This forces an immediate decision since you only get one chance to view an email before it disappears from your inbox.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Implement &lt;a href=&quot;http://www.yesterbox.com/&quot;&gt;Tony Hsieh’s “Yesterbox” system&lt;/a&gt;, which involves filtering today’s emails out of your inbox view. This way, when you treat your inbox as a to-do list, you focus on a bounded set of tasks (yesterday’s inbox, hence “Yesterbox”), and avoid the distracting and discouraging accumulation of new emails as you address the old ones.&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Hire a digital assistant to &lt;a href=&quot;http://hackthesystem.com/blog/the-email-management-system-that-saved-my-life/&quot;&gt;read your email and manage it on your behalf via spreadsheet&lt;/a&gt;. (If I ever get enough email to justify this, I may have to re-evaluate my life first.)&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;Forego email entirely, &lt;a href=&quot;http://www-cs-faculty.stanford.edu/~uno/email.html&quot;&gt;as computer science legend Donald Knuth has&lt;/a&gt;:&lt;/p&gt;
+
+    &lt;blockquote&gt;
+      &lt;p&gt;Email is a wonderful thing for people whose role in life is to be on top of things. But not for me; my role is to be on the bottom of things. What I do takes long hours of studying and uninterruptible concentration.&lt;/p&gt;
+    &lt;/blockquote&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;your-mileage-may-vary&quot;&gt;Your mileage may vary&lt;/h2&gt;
+
+&lt;p&gt;What works for me may not work for you. Each person must find their own unique blend of self-trickery to counteract negative habits like &lt;a href=&quot;http://warkmilson.com/2015/05/15/three-years-of-logging-my-inbox-count.html&quot;&gt;email addiction and procrastination&lt;/a&gt;. Since it is technology that created my problem, my first inclination is to use technology to reverse it. These are my initial adjustments.&lt;/p&gt;
+
+&lt;p&gt;In addition to changing one’s environment and counteracting one’s triggers, though, making peace with email requires an even more personal process of cultivating attention. The &lt;a href=&quot;https://www.google.com/search?q=%22inbox+zero%22&quot;&gt;300,000 Google results for “inbox zero”&lt;/a&gt; almost all describe systems of mental discipline to maintain control over one’s attention.&lt;/p&gt;
+
+&lt;p&gt;Merlin Mann is often credited with popularizing the philosophy of “Inbox Zero.” In one of his most insightful (and discursory) videos, &lt;a href=&quot;https://vimeo.com/7192517&quot;&gt;“Makebelieve Help, Old Butchers, and Figuring Out Who You Are (For Now)”&lt;/a&gt;, he emphasizes the existential challenge of finding your intentions in an environment which is constantly trying to redirect them:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;You’re checking your email on some level… to figure out who you need to be today. &lt;strong&gt;(5:40)&lt;/strong&gt;&lt;/p&gt;
+
+  &lt;p&gt;None of these systems are gonna save you. There’s no diagram, no system, no pen, no notebook, no nothing. It’s harrowing. This is some Kierkegaard-level shit going on. You’re going to have to figure out who you are every day. &lt;strong&gt;(35:42)&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;I’m now more aware of the power of email to leech my attention, and I have an initial cocktail of countermeasures to weaken that power. But that’s the easy part. Remaining mindful of how I &lt;em&gt;want&lt;/em&gt; to spend my time and attention, and keeping it from slipping down yet another abyss, is where the real work starts.&lt;/p&gt;
+
+</description>
+        <pubDate>Wed, 15 Jul 2015 00:00:00 -0700</pubDate>
+        <link>http://warkmilson.com/2015/07/15/outsmarting-my-inbox.html</link>
+        <guid isPermaLink="true">http://warkmilson.com/2015/07/15/outsmarting-my-inbox.html</guid>
+        
+        <category>inbox</category>
+        
+        <category>tools</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Three Years of Logging My Inbox Count</title>
+        <description>&lt;p&gt;For the last few years, I have viewed my inbox count as a barometer of my stress. When I open my inbox, these two scenarios have very different effects:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/inbox/inbox-overflowing.png&quot; alt=&quot;Screenshots of a full and an empty inbox&quot; class=&quot;bordered&quot; /&gt;
+  
+&lt;/figure&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/inbox/inbox-empty.png&quot; alt=&quot;Screenshots of a full and an empty inbox&quot; class=&quot;bordered&quot; /&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;The first says, “I have at least one hundred confused priorities right now; my life is in disarray.” The second says, “be still; stillness reveals the secrets of all eternity.”&lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;inbox-count--stress&quot;&gt;Inbox count ≈ stress&lt;/h2&gt;
+
+&lt;p&gt;The items in my inbox represent obligations, ideas, communications, and opportunities which I need to do something about, &lt;em&gt;but haven’t yet&lt;/em&gt;. If an email arrives and my response is, “sounds great, see you then,” I can dispatch it in a minute. Net stress: zero. However, if an email arrives that implies further research, action, or even just having to think about what a response might look like, I sometimes let it sit there. And sit there. And, as this graph of last month demonstrates, spiral out of control:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/inbox/one-month-increase.png&quot; alt=&quot;Figure 1. A steady, unchecked rise in inbox count during a representative month.&quot; /&gt;
+  
+    &lt;figcaption&gt;&lt;em&gt;Figure 1.&lt;/em&gt; A steady, unchecked rise in inbox count during a representative month.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;For as long as I can remember, I’ve managed my inbox via these cycles of growth and purge.&lt;/p&gt;
+
+&lt;h2 id=&quot;inbox-blitzes&quot;&gt;Inbox blitzes&lt;/h2&gt;
+
+&lt;p&gt;In the “inbox zero” narrative, your inbox is like a garden. Regular tending brings gorgeous flowers; neglect brings weeds and pests. After enough neglect, things can become so overgrown that you can’t see the ground. That’s when you know it’s time to bring out the gloves, rake, shovel, and whatnot to commence an all-out &lt;strong&gt;INBOX BLITZ&lt;/strong&gt;.&lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;p&gt;Everyone has their own tolerance for mental clutter. Past that threshold, life must be put on pause just for the sake of cleaning up. In Figure 1, above, you can see that my tolerance hovered around 40 messages for the latter half of March. However, in early April, as it is wont to do, my inbox snowballed (highlighted in red). It reached 70 messages before I set aside a couple hours and dealt with it.&lt;sup id=&quot;fnref:3&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;p&gt;Here’s a more extreme case: at the beginning of this year, I spent several days visiting home after traveling. After a first pass over my emails, my inbox count stood at 130 messages. With no plans besides seeing family, I decided I would use the time for a massive blitz to get my inbox from 130 to 0. Because I had never attempted a blitz of this scale, and inspired by time-lapse projects by others,&lt;sup id=&quot;fnref:4&quot;&gt;&lt;a href=&quot;#fn:4&quot; class=&quot;footnote&quot;&gt;4&lt;/a&gt;&lt;/sup&gt; I recorded it:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;iframe style=&quot;display: block; margin: 1em auto;&quot; width=&quot;420&quot; height=&quot;315&quot; src=&quot;https://www.youtube.com/embed/bpYDt9XrvBI&quot; frameborder=&quot;0&quot; allowfullscreen=&quot;&quot;&gt;&lt;/iframe&gt;
+  &lt;figcaption&gt;A 29-hour time lapse of me attempting to get my inbox from 130 to 0.&lt;/figcaption&gt;
+&lt;/figure&gt;
+
+&lt;p&gt;When I reached Inbox Zero a few days later, great relief washed over me. I had tasted nirvana.&lt;/p&gt;
+
+&lt;p&gt;Sure, it sounds strange that my inbox count can have the power to make me do this, but I figured that’s just because I’m a bad gardener. Sometimes I may need to grab the lawnmower and be a hero, but surely there are master bonsai gardeners out there making calm, regular snips to tend their gardens.&lt;/p&gt;
+
+&lt;h2 id=&quot;tracking-my-inbox-count&quot;&gt;Tracking my inbox count&lt;/h2&gt;
+
+&lt;p&gt;Inbox blitzes have occurred with discouraging regularity for the last three years:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/inbox/peaks.png&quot; alt=&quot;Figure 2. Three years of inbox count, emphasizing peaks before inbox blitzes.&quot; /&gt;
+  
+    &lt;figcaption&gt;&lt;em&gt;Figure 2.&lt;/em&gt; Three years of inbox count, emphasizing peaks before inbox blitzes.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;This data comes from &lt;a href=&quot;https://github.com/mddub/gmail-logger&quot;&gt;a simple script&lt;/a&gt; I’ve been running since 2012. It logs into my email at the end of every day and counts the number of threads in my inbox. This isn’t a summary of email content which I hope will uncover truths about my personality – &lt;a href=&quot;https://immersion.media.mit.edu/&quot;&gt;great tools&lt;/a&gt; exist for that, and &lt;a href=&quot;https://medium.com/message/my-failed-experiment-in-time-travel-3aa2240a6bc0&quot;&gt;other people&lt;/a&gt; have already made &lt;a href=&quot;http://blog.stephenwolfram.com/2012/03/the-personal-analytics-of-my-life/&quot;&gt;much better attempts&lt;/a&gt; with their own data. Nor does it &lt;a href=&quot;http://gmailmeter.com/&quot;&gt;describe patterns of receiving and sending&lt;/a&gt; to measure how I manage email. No, these are snapshots of the magnitude of the burden I was feeling from my inbox on each day.&lt;/p&gt;
+
+&lt;p&gt;Keeping something in Gmail as the only way of ensuring that I’ll address it, even if it isn’t addressed until months or years later, does not exactly sound like the mark of a responsible adult. But the problem is not that blitzes happen; some form of regular purge is inevitable. The problem is my relationship to my inbox. To see why, we need to go deeper.&lt;/p&gt;
+
+&lt;h2 id=&quot;email-age&quot;&gt;Email age&lt;/h2&gt;
+
+&lt;p&gt;Before starting the massive inbox blitz, I began logging more than just message count: also the dates, subjects, and recipients of the threads sitting in my inbox. With this data, I can see how much of my inbox count on a given day is due to messages that I just received vs. messages that I’ve been sitting on for a long time:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/inbox/age.png&quot; alt=&quot;Figure 3. For each day, breaking down my inbox count by how long the messages have spent there.&quot; /&gt;
+  
+    &lt;figcaption&gt;&lt;em&gt;Figure 3.&lt;/em&gt; For each day, breaking down my inbox count by how long the messages have spent there.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;The month of April illustrates the avoidant behavior which is responsible for my lifelong inbox struggle. During this period, I was a pro at staying on top of emails from the last few days (dark blue). Recent emails in my inbox hit a low point around April 15, when my inbox count was still 40+, and &lt;strong&gt;nearly my entire inbox consisted of old emails I was avoiding&lt;/strong&gt;. The cache of older, unaddressed emails (yellow to orange) remained relatively stable for a couple weeks, as I continued to address more recent emails. That backlog kept the overall inbox count high for almost the entire month before I hit my breaking point and tackled them.&lt;/p&gt;
+
+&lt;p&gt;Whereas Figure 3 looks backwards at the state of my inbox on a given day, I can also look forwards starting from the time I receive an email. That is: looking at all messages that I received on a given day, how long did each email ultimately spend there before I dealt with it? The answer lies in this depressing graph:&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/inbox/tenure.png&quot; alt=&quot;Figure 4. Of all emails received on a given day, what proportion stayed in the inbox for 0-6 hours, 6-12 hours, etc.&quot; /&gt;
+  
+    &lt;figcaption&gt;&lt;em&gt;Figure 4.&lt;/em&gt; Of all emails received on a given day, what proportion stayed in the inbox for 0-6 hours, 6-12 hours, etc.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;There are some small revelations here. For example, the larger light-to-dark-purple period at the top of the graph around the first week of April indicates that around a quarter of all emails received on each of those days weren’t dealt with until at least 2 days later. That period of neglect lines up neatly with the buildup of older email that occurred several days later, towards the latter half of April, in Figure 3. But that’s not the reason this graph is depressing. This is why:&lt;/p&gt;
+
+&lt;p&gt;On most days – &lt;em&gt;even days where my inbox count remained high&lt;/em&gt; – around half of the incoming messages were dealt with within 6 hours! Like a &lt;a href=&quot;http://www.slate.com/articles/health_and_science/science/2009/08/seeking.html&quot;&gt;lab rat with a dopamine lever&lt;/a&gt;, I am addicted to the possibility of novelty that checking my email promises. After that rush comes the fleeting satisfaction of dispatching trivial emails while I am there. Meanwhile, I am repeatedly, deliberately avoiding the truly important obligations that confront me every time I am in my inbox.&lt;/p&gt;
+
+&lt;h2 id=&quot;time-spent-checking-email&quot;&gt;Time spent checking email&lt;/h2&gt;
+
+&lt;p&gt;It would be one thing if I were just bad at email. But I’m also &lt;em&gt;great&lt;/em&gt; at compulsively reminding myself how bad I am at email.&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/inbox/time-buckets.png&quot; alt=&quot;Figure 5. How likely I am to check my email during a given 15-minute block of the day.&quot; /&gt;
+  
+    &lt;figcaption&gt;&lt;em&gt;Figure 5.&lt;/em&gt; How likely I am to check my email during a given 15-minute block of the day.&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;The data above comes from &lt;a href=&quot;http://manytricks.com/timesink/&quot;&gt;Time Sink&lt;/a&gt;, an OS X application which runs in the background and logs every time the title of the currently active window changes. Looking at the logs which correspond to the same period as the graphs above, I can see how frequently I was checking email while I was achieving the 0-6 hour latency in Figure 4.&lt;/p&gt;
+
+&lt;p&gt;This graph shows the shape of my average workday during these 3 months: a consistent block of activity from 10am to 7pm, often followed by more computer usage after 9pm. It also shows the &lt;strong&gt;sobering regularity with which I check my email&lt;/strong&gt;: during any given 15-minute block of the day, I have only about a 50/50 chance of lasting the whole quarter-hour without reaching for a hit off the inbox pipe.&lt;/p&gt;
+
+&lt;p&gt;Checking email is so interwoven in my routine that I didn’t realize it had become a literal time sink. Time and attention are scarce enough as it is; I don’t need an addictive, deceptively anti-productive habit robbing me of them.&lt;/p&gt;
+
+&lt;h2 id=&quot;inbox-count-is-stress&quot;&gt;Inbox count &lt;em&gt;is&lt;/em&gt; stress&lt;/h2&gt;
+
+&lt;p&gt;When I started gathering this data three years ago, I saw email as a neutral burden whose maintenance can tell the story of what else is going on in my life. My only assumption was that my inbox count &lt;em&gt;represents&lt;/em&gt; my stress. While that may be true at the extremes, the deeper discovery is that my inbox &lt;em&gt;generates&lt;/em&gt; far more stress than it has ever represented.&lt;/p&gt;
+
+&lt;p&gt;To be sure, there are some shapes in my inbox rhythms which distinctly trace particular events in my life. It is satisfying to relive those stories with this concrete temporal context. But it has also been surprising, and alarming, to see the dynamics underlying those rhythms.&lt;/p&gt;
+
+&lt;p&gt;Whenever I stray from my task and compulsively open my inbox as in Figure 5, I am strengthening my &lt;a href=&quot;http://mindhacks.com/2006/09/19/why-email-is-addictive-and-what-to-do-about-it/&quot;&gt;operant conditioning&lt;/a&gt;. Whenever I feel a momentary rush of satisfaction from a quick pass through recent junk email, the part of me that wants to make progress on my actual priorities dies a little. When it’s possible to feel my inbox count bearing down on me like a judgment on my character, and only an overdue, dramatic purge can grant me a sense of relief, I must be doing something wrong.&lt;/p&gt;
+
+&lt;p&gt;I am chasing the high of inbox zero, but maybe the reason this vision of email nirvana is so enticing is that I spend so much time in a self-imposed email hell.&lt;/p&gt;
+
+&lt;p&gt;In &lt;a href=&quot;http://www.paulgraham.com/addiction.html&quot;&gt;The Acceleration of Addictiveness&lt;/a&gt;, Paul Graham suggests that as technology advances, society experiences a lag between the new addictive power of that technology and the development of customs to protect ourselves from it. As the rate of technological progress increases, so must our vigilance in building personal defenses against it:&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Already someone trying to live well would seem eccentrically abstemious in most of the US… You can probably take it as a rule of thumb from now on that if people don’t think you’re weird, you’re living badly.&lt;/p&gt;
+
+  &lt;p&gt;Most people I know have problems with Internet addiction. We’re all trying to figure out our own customs for getting free of it… &lt;strong&gt;It always will [seem eccentric] when you’re trying to solve problems where there are no customs yet to guide you.&lt;/strong&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;Like many seemingly simple mental changes, becoming aware of a technological addiction, let alone breaking it, takes real effort to achieve. It’s a blend of deliberate, “eccentric” behaviors and environmental tweaks… including things like developing metrics that tell me whether I’m managing email or it’s managing me.&lt;/p&gt;
+
+&lt;div class=&quot;after-notes&quot;&gt;
+  &lt;p&gt;In &lt;a href=&quot;http://warkmilson.com/2015/07/15/outsmarting-my-inbox.html&quot;&gt;Part 2: Outsmarting My Inbox&lt;/a&gt;, I explore solutions.&lt;/p&gt;
+
+  &lt;p&gt;Graphs produced with &lt;a href=&quot;http://pandas.pydata.org/&quot;&gt;Pandas&lt;/a&gt; and &lt;a href=&quot;http://matplotlib.org/&quot;&gt;Matplotlib&lt;/a&gt;, using colors from &lt;a href=&quot;http://colorbrewer2.org/&quot;&gt;ColorBrewer&lt;/a&gt;.&lt;/p&gt;
+
+  &lt;p&gt;Get the code to &lt;a href=&quot;https://github.com/mddub/gmail-logger&quot;&gt;log your own data&lt;/a&gt; and &lt;a href=&quot;https://github.com/mddub/gmail-graphs&quot;&gt;generate these graphs&lt;/a&gt;.&lt;/p&gt;
+
+  &lt;p&gt;If you have thoughts on this, I would love for you to &lt;a href=&quot;mailto:mark@warkmilson.com&quot;&gt;add to my inbox count&lt;/a&gt;.&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;div class=&quot;footnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot;&gt;
+      &lt;p&gt;Laozi, verse 16, translated by Jonathan Star. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot;&gt;
+      &lt;p&gt;There is a competing school of thought which favors &lt;a href=&quot;http://en.wikipedia.org/wiki/Email_bankruptcy&quot;&gt;declaring email bankruptcy&lt;/a&gt;, the garden-metaphor equivalent of bulldozing your backyard whenever the weeds grow too big. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot;&gt;
+      &lt;p&gt;&lt;em&gt;Getting Things Done&lt;/em&gt; refers to this as “processing” and “organizing.” The &lt;a href=&quot;http://gettingthingsdone.com/2011/10/gtd-best-practices-process-part-2-of-5/&quot;&gt;official GTD blog&lt;/a&gt; claims that “most people need an hour to an hour and a half per day of total processing time to process new inputs.” &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:4&quot;&gt;
+      &lt;p&gt;I was initially inspired by Stan James’ amazing &lt;a href=&quot;http://wanderingstan.github.io/Lifeslice/&quot;&gt;LifeSlice&lt;/a&gt;. I got more direct inspiration for the format from videos of “maniac weeks” by &lt;a href=&quot;http://blog.beeminder.com/maniac/&quot;&gt;Bethany Soule&lt;/a&gt; and &lt;a href=&quot;http://blog.nickwinter.net/the-120-hour-workweek-epic-coding-time-lapse&quot;&gt;Nick Winter&lt;/a&gt;. &lt;a href=&quot;#fnref:4&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Fri, 15 May 2015 00:00:00 -0700</pubDate>
+        <link>http://warkmilson.com/2015/05/15/three-years-of-logging-my-inbox-count.html</link>
+        <guid isPermaLink="true">http://warkmilson.com/2015/05/15/three-years-of-logging-my-inbox-count.html</guid>
+        
+        <category>tracking</category>
+        
+        <category>inbox</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Exporting from EveryTrail</title>
+        <description>&lt;p&gt;&lt;em&gt;Looking for the data export tool without the tear-jerking narrative? &lt;a href=&quot;https://github.com/mddub/everytrail_export&quot;&gt;Go straight to the instructions.&lt;/a&gt;&lt;/em&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;using-everytrail&quot;&gt;Using EveryTrail&lt;/h2&gt;
+
+&lt;p&gt;Back in 2010, &lt;a href=&quot;http://www.everytrail.com&quot;&gt;EveryTrail&lt;/a&gt; was &lt;em&gt;the&lt;/em&gt; site to use if you wanted to find an awesome set of GPS tracks to follow for a hike. My first (and fondest) memory of it is &lt;a href=&quot;http://www.everytrail.com/view_trip.php?trip_id=333882&quot;&gt;an absolutely epic village-hopping hike&lt;/a&gt; tracked by EveryTrail user &lt;a href=&quot;http://www.everytrail.com/my_trips.php?user_id=33256&quot;&gt;ebrunach&lt;/a&gt; in Anhui, China. Before setting off, we downloaded the trail to our phones, which included not only the route, but also geotagged photos, a play-by-play text summary of the sights, and annotated waypoints like “start of jungle.”&lt;/p&gt;
+
+&lt;p&gt;Over two days and three charged phone batteries, my friends and I faithfully monitored our screens and followed the route they spelled out. A few times, we lost the trail, and had to backtrack to realign our blue location dot with ebrunach’s sinuous, improbable path, leading us through jungly hills, quiet farming valleys, and weathered trade roads. At the summit of one of those hills, we stopped to gaze across the vast green panorama stretching from the village where we’d stayed to our next destination village. It was then, marveling at how effortlessly this seemingly undocumentable adventure had been made available to us, when we first truly felt the power of this tool.&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/everytrail/village-hopping.jpg&quot; alt=&quot;Trekking among villages in Anhui, China&quot; /&gt;
+  
+    &lt;figcaption&gt;Trekking among villages in Anhui, China&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;My favorite way to use EveryTrail has always been their &lt;a href=&quot;http://www.everytrail.com/world_map.php&quot;&gt;World Map&lt;/a&gt;, which can be zoomed in anywhere to find tracked activities. Virtually every corner of the earth abounds with trails contributed by the community. For my part, I’ve documented a modest collection of &lt;a href=&quot;http://www.everytrail.com/my_trips.php?user_id=154142&quot;&gt;my own hiking and backpacking trips&lt;/a&gt;.&lt;/p&gt;
+
+&lt;h2 id=&quot;leaving-everytrail&quot;&gt;Leaving EveryTrail&lt;/h2&gt;
+
+&lt;p&gt;TripAdvisor &lt;a href=&quot;http://techcrunch.com/2011/02/03/tripadvisor-buys-trip-planning-service-everytrail-to-expand-mobile-offering/&quot;&gt;acquired EveryTrail in 2011&lt;/a&gt;, and thereafter apparently abandoned it: EveryTrail’s &lt;a href=&quot;https://twitter.com/everytrail&quot;&gt;Twitter account&lt;/a&gt; hasn’t posted an update in a year and a half, links on EveryTrail’s homepage to their &lt;a href=&quot;http://blog.everytrail.com/&quot;&gt;blog&lt;/a&gt; and &lt;a href=&quot;http://www.everytrail.com/forum&quot;&gt;forum&lt;/a&gt; go nowhere, and entire TripAdvisor support threads are dedicated to &lt;a href=&quot;http://www.tripadvisor.com/ShowTopic-g1-i12105-k7120338-Where_How_can_I_get_support_answer_regarding_Everytrail-TripAdvisor_Support.html&quot;&gt;the inability to get support for EveryTrail&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;While EveryTrail’s rich database has endured, its website and app have predictably declined in utility. These days, when tracking hikes, I record using &lt;a href=&quot;http://runkeeper.com/&quot;&gt;RunKeeper&lt;/a&gt; then upload the resulting GPX file to EveryTrail (EveryTrail’s app is a comparative battery hog and has crashed while tracking). When following someone else’s trail, I download the raw data from EveryTrail and import it to an app like &lt;a href=&quot;http://alpinequest.psyberia.net/&quot;&gt;AlpineQuest&lt;/a&gt; (which provides more useful tools mid-hike such as distance traveled, elevation, and multiple map tiles).&lt;/p&gt;
+
+&lt;p&gt;Nonetheless, EveryTrail remains the most comprehensive site on the web to find and view trails. As the creator of Gaia GPS, another GPS app, &lt;a href=&quot;http://blog.gaiagps.com/everytrail-vs-alltrails/&quot;&gt;concluded in 2014&lt;/a&gt;, “using EveryTrail feels a little dated, but in terms of data there is still no better compendium than EveryTrail.” I’ve continued contributing my hikes, many with &lt;a href=&quot;http://www.everytrail.com/view_trip.php?trip_id=2022884&quot;&gt;trip notes&lt;/a&gt; and &lt;a href=&quot;http://www.everytrail.com/view_trip.php?trip_id=2671553&quot;&gt;photos&lt;/a&gt;, because it’s the most effective platform for others to find and enjoy the same routes.&lt;/p&gt;
+
+&lt;p&gt;I could deal with the aging interface and clunky transfer methods so long as EveryTrail continued to serve that role as a platform. But in recent months, the site’s availability has been spotty, sometimes &lt;a href=&quot;http://www.isitdownrightnow.com/everytrail.com.html&quot;&gt;going down for days at a time&lt;/a&gt;. Even the individual trip page, which previously included graphs and photos on the map, has regressed (or broken) so that it displays far less information.&lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; The final straw was when, earlier this year, some friends and I wanted to repeat &lt;a href=&quot;http://www.everytrail.com/view_trip.php?trip_id=1741278&quot;&gt;our favorite river-tracing trail&lt;/a&gt;, which we’d discovered and tracked so long ago that it happened to be saved only on EveryTrail. The site was down for days, leaving us hanging until it came back up the morning when we were leaving.&lt;/p&gt;
+
+&lt;p&gt;I realized it’s only a matter of time before I lose access to everything I’ve stored there: not merely my GPS data, but also many trip notes and selections of photos which I haven’t stored elsewhere.&lt;/p&gt;
+
+&lt;h2 id=&quot;getting-my-data-out&quot;&gt;Getting my data out&lt;/h2&gt;
+
+&lt;p&gt;I wrote &lt;strong&gt;&lt;a href=&quot;https://github.com/mddub/everytrail_export&quot;&gt;a Python script&lt;/a&gt;&lt;/strong&gt; which scrapes an EveryTrail trip page and saves its data. Using this script just automates a series of copy-and-paste and save-link-as operations that I would otherwise do by hand, which is consistent with their Terms of Service.&lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;p&gt;Since this script relies on a specific layout of the trip page, an update on EveryTrail’s end could easily break it. But let’s be real, what are the odds of that happening?&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;&lt;a href=&quot;https://github.com/mddub/everytrail_export&quot;&gt;The code is on GitHub&lt;/a&gt;&lt;/strong&gt;, along with instructions to install and run the script.&lt;/p&gt;
+
+&lt;h3 id=&quot;passing-the-login-cookie-from-web-browser-to-scraper&quot;&gt;Passing the login cookie from web browser to scraper&lt;/h3&gt;
+
+&lt;p&gt;The only real gotcha is that &lt;strong&gt;you must be logged into EveryTrail in order to download a trip’s GPX file.&lt;/strong&gt; This is where the &lt;code&gt;--trailauth&lt;/code&gt; option comes in. I first log into EveryTrail as usual on my web browser, which causes EveryTrail to set a cookie called &lt;code&gt;TRAILAUTH&lt;/code&gt; to keep me logged in. I then &lt;a href=&quot;http://www.wikihow.com/View-Cookies&quot;&gt;find the value of that cookie&lt;/a&gt; and pass it to the script. It can thereby download the GPX files as if logged in as me.&lt;/p&gt;
+
+&lt;h3 id=&quot;downloading-a-trip-or-three&quot;&gt;Downloading a trip or three&lt;/h3&gt;
+
+&lt;p&gt;Here’s what it looks like to download a single trip:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;$ everytrail_export 2671553 --trailauth d9b61ab30a10...
+Trip 1/1:
+Downloading http://www.everytrail.com/view_trip.php?trip_id=2671553
+  Ventana Double Cone loop - Big Sur - California, United States
+  Saved trails/2671553-ventana-double-cone-loop-big-s/title.txt
+  Saved trails/2671553-ventana-double-cone-loop-big-s/info.html
+  Saved trails/2671553-ventana-double-cone-loop-big-s/stats.html
+  Saving GPX and KML files...
+  Downloading http://www.everytrail.com/downloadGPX.php?trip_id=2671553
+  Saved trails/2671553-ventana-double-cone-loop-big-s/2671553.gpx
+  Downloading http://www.everytrail.com/downloadKML.php?trip_id=2671553
+  Saved trails/2671553-ventana-double-cone-loop-big-s/2671553.kmz
+  Downloading photos page: http://www.everytrail.com/trip_pictures.php?trip_id=2671553&amp;amp;code=
+  Photo 1/21:
+    Downloading photo info page: http://www.everytrail.com/view_picture.php?trip_id=2671553&amp;amp;picture_id=7004037
+----- Response came back with HTTP status 502; trying again... -----
+    Finding full photo: http://www.everytrail.com/picture/vieworiginal?picture_id=7004037
+    Downloading full photo: http://images.everytrail.com/pics/original/7004037-IMG_7611.jpg
+    Saved &amp;quot;Setting off&amp;quot; to trails/2671553-ventana-double-cone-loop-big-s/images/7004037-IMG_7611.jpg
+...
+  Photo 21/21:
+    Downloading photo info page: http://www.everytrail.com/view_picture.php?trip_id=2671553&amp;amp;picture_id=7004057
+    Finding full photo: http://www.everytrail.com/picture/vieworiginal?picture_id=7004057
+----- Response came back with HTTP status 502; trying again... -----
+    Downloading full photo: http://images.everytrail.com/pics/original/7004057-IMG_7805.jpg
+    Saved &amp;quot;Stream crossing&amp;quot; to trails/2671553-ventana-double-cone-loop-big-s/images/7004057-IMG_7805.jpg
+  Saved trails/2671553-ventana-double-cone-loop-big-s/photo_info.json&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;Yes, those 502s are fairly typical. We’re not a moment too soon…&lt;/p&gt;
+
+&lt;p&gt;Downloading trips is also possible via trip page URL rather than trip ID:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;$ everytrail_export \
+    http://www.everytrail.com/view_trip.php?trip_id=2671553 \
+    http://www.everytrail.com/view_trip.php?trip_id=2991898 \
+    http://www.everytrail.com/view_trip.php?trip_id=2348794 \
+    --trailauth d9b61ab30a10...&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h3 id=&quot;downloading-all-my-trips-at-once&quot;&gt;Downloading all my trips at once&lt;/h3&gt;
+
+&lt;p&gt;Rather than specify the URL for each trip individually, the &lt;code&gt;--trips-page&lt;/code&gt; option scrapes my &lt;a href=&quot;http://www.everytrail.com/my_trips.php?user_id=154142&quot;&gt;trips page&lt;/a&gt; for them:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;$ everytrail_export \
+    --trips-page http://www.everytrail.com/my_trips.php?user_id=154142 \
+    --trailauth d9b61ab30a10...
+&lt;span class=&quot;hll&quot;&gt;Scraping http://www.everytrail.com/my_trips.php?user_id=154142 for trip URLs...
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;Found links to 15 trips: 1550019 1673357 1693258 1733157 1741278 1820769 1924844 1924847 2022884 2053816 2108623 2301920 2348794 2671553 2991898
+&lt;/span&gt;Trip 1/15:
+Downloading http://www.everytrail.com/view_trip.php?trip_id=1550019
+  El Corte de Madera Creek Trail - California, United States
+...&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h2 id=&quot;mourning-everytrail&quot;&gt;Mourning EveryTrail&lt;/h2&gt;
+
+&lt;p&gt;There are many people who have put much more energy than I have into tracking routes, writing trip stories, captioning photos, and marking waypoints. EveryTrail is a genuinely revolutionary platform in that it has encouraged tens of thousands to compile their outdoor experiences for the world.&lt;sup id=&quot;fnref:3&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt; It would be a great shame if, along with EveryTrail, all those trips were to &lt;a href=&quot;http://en.wikipedia.org/wiki/Link_rot&quot;&gt;rot and die&lt;/a&gt;, unavailable to share with friends, never to be discovered by new travelers.&lt;/p&gt;
+
+&lt;p&gt;There are &lt;a href=&quot;http://alternativeto.net/software/everytrail/?platform=online&quot;&gt;plenty of alternatives&lt;/a&gt; solving the same problems as EveryTrail, and I will migrate to one eventually. &lt;a href=&quot;http://www.wikiloc.com/&quot;&gt;Some of them&lt;/a&gt; show &lt;a href=&quot;https://www.gaiagps.com/&quot;&gt;serious promise&lt;/a&gt;, and some can even &lt;a href=&quot;http://triptrack.org/&quot;&gt;import from EveryTrail&lt;/a&gt;. Still, none has reached the same critical mass, and all have the potential to remain siloed in the same way.&lt;/p&gt;
+
+&lt;h2 id=&quot;whats-next&quot;&gt;What’s next&lt;/h2&gt;
+
+&lt;p&gt;I designed this export tool with the goal of capturing as much raw data as someone would need to republish their routes with the same degree of detail elsewhere. EveryTrail did a great job presenting my trips, but they are ultimately my property. Anyone who has put energy into creating trip content should have a straightforward way of sharing it with others, while retaining faith in its continued existence.&lt;/p&gt;
+
+&lt;p&gt;I’m still exploring what that might look like.&lt;/p&gt;
+
+&lt;p&gt;A simple first step, which solves the problems of ownership and hosting, is to build a tool which converts the exported EveryTrail data into a self-contained static site which can be hosted somewhere like &lt;a href=&quot;https://neocities.org/&quot;&gt;Neocities&lt;/a&gt;. The problems of indexing and discovery would remain unsolved.&lt;/p&gt;
+
+&lt;p&gt;In a utopian future world, a single format, probably endorsed by the &lt;a href=&quot;http://en.wikipedia.org/wiki/Open_Geospatial_Consortium&quot;&gt;OGC&lt;/a&gt;, will emerge as the standard for representing anything from &lt;a href=&quot;http://www.strava.com/&quot;&gt;bike races&lt;/a&gt; to &lt;a href=&quot;http://www.ramblr.com/&quot;&gt;photo-annotated travel logs&lt;/a&gt;, and all sites will support free import and export of that format. When we live in that world, extending this script to synthesize all its output in that format will be a trivial task.&lt;/p&gt;
+
+&lt;p&gt;Stay tuned for part 2. If you have ideas about this, &lt;a href=&quot;mailto:mark@warkmilson.com&quot;&gt;I’d love to hear from you&lt;/a&gt;.&lt;/p&gt;
+
+&lt;div class=&quot;footnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot;&gt;
+      &lt;p&gt;The map for a trip &lt;a href=&quot;http://www.everytrail.com/view_trip.php?trip_id=2671553&quot;&gt;like this one&lt;/a&gt; would previously show a graph &lt;a href=&quot;http://warkmilson.com/assets/everytrail/example-graph-2671553.png&quot;&gt;like this&lt;/a&gt;, or alternatively play a slideshow of photos demonstrating their locations along the trail, but now neither feature is present. The &lt;a href=&quot;http://www.everytrail.com/fullscreen.php?trip_id=2671553&quot;&gt;“fullscreen” view&lt;/a&gt; appears to still have controls for those features, but it hangs on the loading screen and displays nothing. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot;&gt;
+      &lt;p&gt;EveryTrail’s &lt;a href=&quot;http://www.everytrail.com/tos.php&quot;&gt;Terms of Service&lt;/a&gt; state that the company (1) “does not claim ownership of User Content you submit or make available for inclusion on the Service, except as specifically provided otherwise” and grants a (2) “license to access and use the Web Sites and electronically copy (except where prohibited without a license) and print to hard copy portions of the Site Materials for your informational, non-commercial and personal use only.” This license excludes (3) “use of any data mining, robots or similar data gathering or extraction methods.” I am downloading only my data, which I own, strictly for personal use. Doing so means accessing a specific, bounded subset of the site, rather than crawling links deeply to discover and gather content as the terms “data mining” and “robots” imply. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot;&gt;
+      &lt;p&gt;I have no idea how many EveryTrail users have actually contributed trips, at least not without writing a scraper which much more clearly violates their Terms of Service. But a few manual iterations of &lt;a href=&quot;http://www.evanjones.ca/encrypted-db-ids.html&quot;&gt;changing the URL&lt;/a&gt; to find the maximum valid user ID suggest that they have just about three million users. A very rough estimate using the &lt;a href=&quot;http://en.wikipedia.org/wiki/1%25_rule_%28Internet_culture%29&quot;&gt;90-9-1 principle&lt;/a&gt; is that 30,000 users have contributed trips. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Fri, 27 Mar 2015 00:00:00 -0700</pubDate>
+        <link>http://warkmilson.com/2015/03/27/exporting-from-everytrail.html</link>
+        <guid isPermaLink="true">http://warkmilson.com/2015/03/27/exporting-from-everytrail.html</guid>
+        
+        <category>python</category>
+        
+        <category>everytrail</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Sending Local Git Commits to Beeminder</title>
+        <description>&lt;h2 id=&quot;whats-beeminder&quot;&gt;What’s Beeminder?&lt;/h2&gt;
+
+&lt;p&gt;I’m a huge fan of &lt;a href=&quot;https://www.beeminder.com/&quot;&gt;Beeminder&lt;/a&gt;. It’s a goal-tracking app that turns a &lt;strong&gt;goal&lt;/strong&gt; like “write more code for project X” into a metric-driven &lt;strong&gt;habit&lt;/strong&gt; like “make 5 commits per week to project X,” which in turn implies an up-and-to-the-right &lt;strong&gt;graph&lt;/strong&gt; of commits over time. The twist is that committing to a specific rate of progress means making a &lt;strong&gt;contract&lt;/strong&gt; that you will achieve that progress. On the graph for your goal, if your datapoints ever lag behind the upward linear trend to which you’ve committed, you have violated your contract, so you pay money to Beeminder. (At this point, depending on personality type, most people experience either curiosity at the possibilities for technology-mediated behavior change, or bemusement coupled with a firm conviction that this is not for them. If you fall into the former category, read on.)&lt;/p&gt;
+
+&lt;figure&gt;
+  &lt;img src=&quot;http://warkmilson.com/assets/git-to-beeminder/run-graph-screenshot.png&quot; alt=&quot;My &amp;quot;run twice a week&amp;quot; goal&quot; /&gt;
+  
+    &lt;figcaption&gt;My &amp;quot;run twice a week&amp;quot; goal&lt;/figcaption&gt;
+  
+&lt;/figure&gt;
+
+&lt;p&gt;I like Beeminder for a lot of reasons: its recognition that many “goals” are actually best modeled as “habits,” its emphasis on regularity (“it’s been N days since you last went on a run”), and of course its function as a commitment device.&lt;sup id=&quot;fnref:1&quot;&gt;&lt;a href=&quot;#fn:1&quot; class=&quot;footnote&quot;&gt;1&lt;/a&gt;&lt;/sup&gt; My faith in its ability to improve my behavior comes not only from my past 4 months of use, but also from the fact that its features include those of many (less sophisticated) habit-change tools I have built for myself.&lt;sup id=&quot;fnref:2&quot;&gt;&lt;a href=&quot;#fn:2&quot; class=&quot;footnote&quot;&gt;2&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;automating-goal-data&quot;&gt;Automating goal data&lt;/h2&gt;
+
+&lt;p&gt;By default, a Beeminder goal is just a self-defined metric (pages read, calls made, tasks completed) plus self-reported data on that metric. This is what most of my goals look like, and as long as the metric doesn’t leave much room for post-hoc interpretation, self-reporting mostly works.&lt;/p&gt;
+
+&lt;p&gt;The best Beeminder goals, however, are those whose data tracking is automated: in other words, doing the pledged task is equivalent to reporting it to Beeminder. For example, data for my “run regularly” goal comes from &lt;a href=&quot;http://runkeeper.com/&quot;&gt;RunKeeper&lt;/a&gt;, so I log data to Beeminder simply by tracking my run as I normally would. I would like this sort of data pipeline for my git commits: &lt;strong&gt;make a commit, generate a Beeminder datapoint.&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Unfortunately, even though Beeminder &lt;a href=&quot;https://www.beeminder.com/gitminder&quot;&gt;includes GitHub&lt;/a&gt; among its third-party integrations, most of my projects aren’t hosted on GitHub. The next best thing? A script which uses the Beeminder API to submit a datapoint whenever I make a new commit to my local git repository.&lt;sup id=&quot;fnref:3&quot;&gt;&lt;a href=&quot;#fn:3&quot; class=&quot;footnote&quot;&gt;3&lt;/a&gt;&lt;/sup&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;a-post-commit-hook&quot;&gt;A post-commit hook&lt;/h2&gt;
+
+&lt;p&gt;Every git repository can be customized with &lt;a href=&quot;http://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks&quot;&gt;&lt;em&gt;hooks&lt;/em&gt;&lt;/a&gt;, scripts which are triggered when certain events happen, such as committing or pushing. A common use is to add a &lt;code&gt;pre-commit&lt;/code&gt; hook which validates the contents of a commit (by running a linter or style checker) before it is created. For my use case, the &lt;code&gt;post-commit&lt;/code&gt; hook, which is run after a commit is finalized, lets me add submit-to-Beeminder behavior at the moment of divine creation:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;$ git commit -m &amp;quot;Refactor animation loop&amp;quot;
+&lt;span class=&quot;hll&quot;&gt;Post this commit (&amp;quot;mtr: Refactor animation loop&amp;quot;) to Beeminder goal &amp;quot;art&amp;quot;? [y/n] y
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;Posting to Beeminder...
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;{&amp;quot;timestamp&amp;quot;:1422739132,&amp;quot;value&amp;quot;:1.0,&amp;quot;comment&amp;quot;:&amp;quot;mtr: Refactor animation loop&amp;quot;,
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;  &amp;quot;id&amp;quot;:&amp;quot;54cd46bcf508544075363872&amp;quot;,&amp;quot;updated_at&amp;quot;:1422739132,&amp;quot;requestid&amp;quot;:null,
+&lt;/span&gt;&lt;span class=&quot;hll&quot;&gt;  &amp;quot;canonical&amp;quot;:&amp;quot;31 1 \&amp;quot;mtr: Refactor animation loop\&amp;quot;&amp;quot;,&amp;quot;daystamp&amp;quot;:&amp;quot;20150131&amp;quot;}
+&lt;/span&gt;[master 3f68571] Refactor animation loop
+ 1 file changed, 70 insertions(+), 30 deletions(-)&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;The code powering this hook is an absurdly simple Bash script which makes an HTTP request to the &lt;a href=&quot;https://www.beeminder.com/api&quot;&gt;Beeminder API&lt;/a&gt;. It boils down to:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-sh&quot; data-lang=&quot;sh&quot;&gt;&lt;span&gt;&lt;/span&gt;curl https://www.beeminder.com/api/v1/users/&lt;span class=&quot;nv&quot;&gt;$USERNAME&lt;/span&gt;/goals/&lt;span class=&quot;nv&quot;&gt;$GOAL&lt;/span&gt;/datapoints.json &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+  --data &lt;span class=&quot;s2&quot;&gt;&amp;quot;auth_token=&lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;$AUTH_TOKEN&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+  --data &lt;span class=&quot;s2&quot;&gt;&amp;quot;value=1&amp;quot;&lt;/span&gt; &lt;span class=&quot;se&quot;&gt;\&lt;/span&gt;
+  --data-urlencode &lt;span class=&quot;s2&quot;&gt;&amp;quot;comment=&lt;/span&gt;&lt;span class=&quot;k&quot;&gt;$(&lt;/span&gt;git log -1 --pretty&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;%B&lt;span class=&quot;k&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;p&gt;My final version wraps this &lt;code&gt;curl&lt;/code&gt; command in a prompt and adds some abstraction to support using the code from multiple git repos.&lt;/p&gt;
+
+&lt;h2 id=&quot;get-the-code&quot;&gt;Get the code!&lt;/h2&gt;
+
+&lt;p&gt;Clone my &lt;a href=&quot;https://github.com/mddub/git-to-beeminder&quot;&gt;git-to-beeminder&lt;/a&gt; repo from GitHub and follow the “Quick start” instructions in the README.&lt;/p&gt;
+
+&lt;p&gt;For each repo whose commits you want to count towards a Beeminder goal, you should add a &lt;code&gt;.git/hooks/post-commit&lt;/code&gt; file that defines your Beeminder options (username, goal name, API key) via environment variables and then calls the &lt;code&gt;git-to-beeminder.sh&lt;/code&gt; script.&lt;/p&gt;
+
+&lt;p&gt;One optional configuration value, &lt;code&gt;BEEMINDER_MESSAGE_PREFIX&lt;/code&gt;, allows you to specify a string which will be prepended to the comment for your Beeminder datapoint. I use this to count multiple git repos towards the same goal, while still being able to trace the provenance of a given datapoint:&lt;/p&gt;
+
+&lt;figure class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-text&quot; data-lang=&quot;text&quot;&gt;&lt;span&gt;&lt;/span&gt;2015-01-31 1 &amp;quot;mtr: Refactor animation loop&amp;quot;
+2015-01-22 1 &amp;quot;sfstreetquiz: Add more neighborhoods&amp;quot;
+2015-01-22 1 &amp;quot;sfstreetquiz: Remove compass, add street name axis, better start transition&amp;quot;
+2015-01-18 1 &amp;quot;mtr: Slowly increase transparency and width of lines as they expand&amp;quot;&lt;/code&gt;&lt;/pre&gt;&lt;/figure&gt;
+
+&lt;h2 id=&quot;beeminder-is-rad&quot;&gt;Beeminder is rad&lt;/h2&gt;
+
+&lt;p&gt;In my quest to improve my own behavior through technology, I’ve often gotten carried away setting up syncing infrastructure, architecting data models, designing visualizations, and dreaming up new interventions. The most liberating thing about Beeminder has been that they do the work of storing, presenting, and creating accountability for my goal data. That frees me up to focus on the more exciting work of deciding on goals, testing out (and automating) their metrics, and achieving them.&lt;/p&gt;
+
+&lt;div class=&quot;footnotes&quot;&gt;
+  &lt;ol&gt;
+    &lt;li id=&quot;fn:1&quot;&gt;
+      &lt;p&gt;One of my favorite posts on procrastination and commitment devices, which also happens to be an introduction to the motivation for Beeminder, is &lt;a href=&quot;http://blog.beeminder.com/akrasia/&quot;&gt;“How To Do What You Want: Akrasia and Self-Binding”&lt;/a&gt;. &lt;a href=&quot;#fnref:1&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:2&quot;&gt;
+      &lt;p&gt;In my &lt;a href=&quot;http://quantifiedself.com/2013/07/mark-wilson-on-synthesizing-data/&quot;&gt;Quantified Self talk on running&lt;/a&gt;, I alluded to a system which sends email alerts to my loved ones when too many days have passed since I last logged a running or stretching event. That system, and a couple half-finished “habit dashboards,” will be released after my death as soon as my biographer reaches my &lt;code&gt;shitty-old-code&lt;/code&gt; folder. &lt;a href=&quot;#fnref:2&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+    &lt;li id=&quot;fn:3&quot;&gt;
+      &lt;p&gt;I’m setting aside the debate of whether any quantitative measure of code should be used as a metric for achievement. In any case, a prompt before submitting to Beeminder allows you to judge whether a commit should be “promoted” to a datapoint that counts towards your goal. &lt;a href=&quot;#fnref:3&quot; class=&quot;reversefootnote&quot;&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</description>
+        <pubDate>Sat, 31 Jan 2015 00:00:00 -0800</pubDate>
+        <link>http://warkmilson.com/2015/01/31/local-git-commits-to-beeminder.html</link>
+        <guid isPermaLink="true">http://warkmilson.com/2015/01/31/local-git-commits-to-beeminder.html</guid>
+        
+        <category>bash</category>
+        
+        <category>git</category>
+        
+        <category>beeminder</category>
+        
+        
+      </item>
+    
+  </channel>
+</rss>

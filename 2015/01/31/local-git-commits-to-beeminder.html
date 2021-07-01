@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Sending Local Git Commits to Beeminder</title>
+  <meta name="description" content="How I use a post-commit hook to track progress towards my goals in Beeminder.">
+
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="canonical" href="http://warkmilson.com/2015/01/31/local-git-commits-to-beeminder.html">
+  <link rel="alternate" type="application/rss+xml" title="wark milson" href="http://warkmilson.com/feed.xml" />
+
+  <meta property="og:image" content="http://warkmilson.com/assets/git-to-beeminder/run-graph-screenshot.png" />
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+
+  <div class="wrapper">
+
+    <a class="site-title" href="/"><span class="rotate">w</span>ark <span class="rotate">m</span>ilson</a>
+
+    <nav class="site-nav">
+      <div class="trigger">
+        
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+          
+        
+      </div>
+    </nav>
+
+  </div>
+
+</header>
+
+
+    <div class="page-content">
+      <div class="wrapper">
+        <div class="post">
+
+  <header class="post-header">
+    <h1 class="post-title">Sending Local Git Commits to Beeminder</h1>
+    <p class="post-meta">Jan 31, 2015</p>
+  </header>
+
+  <article class="post-content">
+    <h2 id="whats-beeminder">What’s Beeminder?</h2>
+
+<p>I’m a huge fan of <a href="https://www.beeminder.com/">Beeminder</a>. It’s a goal-tracking app that turns a <strong>goal</strong> like “write more code for project X” into a metric-driven <strong>habit</strong> like “make 5 commits per week to project X,” which in turn implies an up-and-to-the-right <strong>graph</strong> of commits over time. The twist is that committing to a specific rate of progress means making a <strong>contract</strong> that you will achieve that progress. On the graph for your goal, if your datapoints ever lag behind the upward linear trend to which you’ve committed, you have violated your contract, so you pay money to Beeminder. (At this point, depending on personality type, most people experience either curiosity at the possibilities for technology-mediated behavior change, or bemusement coupled with a firm conviction that this is not for them. If you fall into the former category, read on.)</p>
+
+<figure>
+  <img src="http://warkmilson.com/assets/git-to-beeminder/run-graph-screenshot.png" alt="My &quot;run twice a week&quot; goal" />
+  
+    <figcaption>My &quot;run twice a week&quot; goal</figcaption>
+  
+</figure>
+
+<p>I like Beeminder for a lot of reasons: its recognition that many “goals” are actually best modeled as “habits,” its emphasis on regularity (“it’s been N days since you last went on a run”), and of course its function as a commitment device.<sup id="fnref:1"><a href="#fn:1" class="footnote">1</a></sup> My faith in its ability to improve my behavior comes not only from my past 4 months of use, but also from the fact that its features include those of many (less sophisticated) habit-change tools I have built for myself.<sup id="fnref:2"><a href="#fn:2" class="footnote">2</a></sup></p>
+
+<h2 id="automating-goal-data">Automating goal data</h2>
+
+<p>By default, a Beeminder goal is just a self-defined metric (pages read, calls made, tasks completed) plus self-reported data on that metric. This is what most of my goals look like, and as long as the metric doesn’t leave much room for post-hoc interpretation, self-reporting mostly works.</p>
+
+<p>The best Beeminder goals, however, are those whose data tracking is automated: in other words, doing the pledged task is equivalent to reporting it to Beeminder. For example, data for my “run regularly” goal comes from <a href="http://runkeeper.com/">RunKeeper</a>, so I log data to Beeminder simply by tracking my run as I normally would. I would like this sort of data pipeline for my git commits: <strong>make a commit, generate a Beeminder datapoint.</strong></p>
+
+<p>Unfortunately, even though Beeminder <a href="https://www.beeminder.com/gitminder">includes GitHub</a> among its third-party integrations, most of my projects aren’t hosted on GitHub. The next best thing? A script which uses the Beeminder API to submit a datapoint whenever I make a new commit to my local git repository.<sup id="fnref:3"><a href="#fn:3" class="footnote">3</a></sup></p>
+
+<h2 id="a-post-commit-hook">A post-commit hook</h2>
+
+<p>Every git repository can be customized with <a href="http://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks"><em>hooks</em></a>, scripts which are triggered when certain events happen, such as committing or pushing. A common use is to add a <code>pre-commit</code> hook which validates the contents of a commit (by running a linter or style checker) before it is created. For my use case, the <code>post-commit</code> hook, which is run after a commit is finalized, lets me add submit-to-Beeminder behavior at the moment of divine creation:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>$ git commit -m &quot;Refactor animation loop&quot;
+<span class="hll">Post this commit (&quot;mtr: Refactor animation loop&quot;) to Beeminder goal &quot;art&quot;? [y/n] y
+</span><span class="hll">Posting to Beeminder...
+</span><span class="hll">{&quot;timestamp&quot;:1422739132,&quot;value&quot;:1.0,&quot;comment&quot;:&quot;mtr: Refactor animation loop&quot;,
+</span><span class="hll">  &quot;id&quot;:&quot;54cd46bcf508544075363872&quot;,&quot;updated_at&quot;:1422739132,&quot;requestid&quot;:null,
+</span><span class="hll">  &quot;canonical&quot;:&quot;31 1 \&quot;mtr: Refactor animation loop\&quot;&quot;,&quot;daystamp&quot;:&quot;20150131&quot;}
+</span>[master 3f68571] Refactor animation loop
+ 1 file changed, 70 insertions(+), 30 deletions(-)</code></pre></figure>
+
+<p>The code powering this hook is an absurdly simple Bash script which makes an HTTP request to the <a href="https://www.beeminder.com/api">Beeminder API</a>. It boils down to:</p>
+
+<figure class="highlight"><pre><code class="language-sh" data-lang="sh"><span></span>curl https://www.beeminder.com/api/v1/users/<span class="nv">$USERNAME</span>/goals/<span class="nv">$GOAL</span>/datapoints.json <span class="se">\</span>
+  --data <span class="s2">&quot;auth_token=</span><span class="nv">$AUTH_TOKEN</span><span class="s2">&quot;</span> <span class="se">\</span>
+  --data <span class="s2">&quot;value=1&quot;</span> <span class="se">\</span>
+  --data-urlencode <span class="s2">&quot;comment=</span><span class="k">$(</span>git log -1 --pretty<span class="o">=</span>%B<span class="k">)</span><span class="s2">&quot;</span></code></pre></figure>
+
+<p>My final version wraps this <code>curl</code> command in a prompt and adds some abstraction to support using the code from multiple git repos.</p>
+
+<h2 id="get-the-code">Get the code!</h2>
+
+<p>Clone my <a href="https://github.com/mddub/git-to-beeminder">git-to-beeminder</a> repo from GitHub and follow the “Quick start” instructions in the README.</p>
+
+<p>For each repo whose commits you want to count towards a Beeminder goal, you should add a <code>.git/hooks/post-commit</code> file that defines your Beeminder options (username, goal name, API key) via environment variables and then calls the <code>git-to-beeminder.sh</code> script.</p>
+
+<p>One optional configuration value, <code>BEEMINDER_MESSAGE_PREFIX</code>, allows you to specify a string which will be prepended to the comment for your Beeminder datapoint. I use this to count multiple git repos towards the same goal, while still being able to trace the provenance of a given datapoint:</p>
+
+<figure class="highlight"><pre><code class="language-text" data-lang="text"><span></span>2015-01-31 1 &quot;mtr: Refactor animation loop&quot;
+2015-01-22 1 &quot;sfstreetquiz: Add more neighborhoods&quot;
+2015-01-22 1 &quot;sfstreetquiz: Remove compass, add street name axis, better start transition&quot;
+2015-01-18 1 &quot;mtr: Slowly increase transparency and width of lines as they expand&quot;</code></pre></figure>
+
+<h2 id="beeminder-is-rad">Beeminder is rad</h2>
+
+<p>In my quest to improve my own behavior through technology, I’ve often gotten carried away setting up syncing infrastructure, architecting data models, designing visualizations, and dreaming up new interventions. The most liberating thing about Beeminder has been that they do the work of storing, presenting, and creating accountability for my goal data. That frees me up to focus on the more exciting work of deciding on goals, testing out (and automating) their metrics, and achieving them.</p>
+
+<div class="footnotes">
+  <ol>
+    <li id="fn:1">
+      <p>One of my favorite posts on procrastination and commitment devices, which also happens to be an introduction to the motivation for Beeminder, is <a href="http://blog.beeminder.com/akrasia/">“How To Do What You Want: Akrasia and Self-Binding”</a>. <a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
+    </li>
+    <li id="fn:2">
+      <p>In my <a href="http://quantifiedself.com/2013/07/mark-wilson-on-synthesizing-data/">Quantified Self talk on running</a>, I alluded to a system which sends email alerts to my loved ones when too many days have passed since I last logged a running or stretching event. That system, and a couple half-finished “habit dashboards,” will be released after my death as soon as my biographer reaches my <code>shitty-old-code</code> folder. <a href="#fnref:2" class="reversefootnote">&#8617;</a></p>
+    </li>
+    <li id="fn:3">
+      <p>I’m setting aside the debate of whether any quantitative measure of code should be used as a metric for achievement. In any case, a prompt before submitting to Beeminder allows you to judge whether a commit should be “promoted” to a datapoint that counts towards your goal. <a href="#fnref:3" class="reversefootnote">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+
+  </article>
+
+</div>
+
+      </div>
+    </div>
+
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-55947759-1', 'auto');
+      ga('send', 'pageview');
+    </script>
+  </body>
+
+</html>
