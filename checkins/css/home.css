@@ -1,0 +1,23 @@
+.user-name-section {
+  text-align: center;
+}
+
+.user-name-section .input-desc {
+  font-size: 32px;
+  line-height: 32px;
+}
+
+.user-name-section .input-section {
+  font-size: 48px;
+  line-height: 48px;
+}
+
+.user-name-section #user-name {
+  height: 52px;
+  font-size: 48px;
+  width: 450px;
+}
+
+.user-name-section.working * {
+  color: #ccc;
+}

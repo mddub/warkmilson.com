@@ -1,0 +1,200 @@
+body {
+  position: relative;
+}
+
+.header {
+  margin-bottom: 15px;
+}
+
+.change-user {
+  float: right;
+  color: #ccc;
+  margin-top: 4px;
+}
+
+.filter-up {
+  font-size: 14px;
+  margin-right: 4px;
+}
+
+.title {
+  margin-bottom: 0;
+  display: inline-block;
+}
+
+.lead {
+  margin-bottom: 0;
+  line-height: normal;
+}
+
+.chooser-links {
+  margin-bottom: 5px;
+  margin-left: 5px;
+  color: #999;
+  font-size: 12px;
+}
+
+.chooser-links span {
+  cursor: pointer;
+  margin-right: 5px;
+}
+
+.chooser-links .active {
+  font-weight: bold;
+}
+
+.top-table {
+  font-size: 12px;
+  line-height: normal;
+  width: 100%;
+}
+
+.top-table tr {
+  cursor: pointer;
+}
+
+.top-table td {
+  padding: 2px 5px;
+}
+
+.top-table .view-all, .top-table .view-less {
+  text-align: center;
+  cursor: pointer;
+  color: #999;
+}
+
+.top-table .view-all {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.top-table .view-less {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.top-table .view-less {
+  display: none;
+}
+
+.count-bar {
+  float: right;
+  display: inline-block;
+  background: #3182bd;
+}
+
+.time-grid {
+  text-align: center;
+  font-size: 1px;
+}
+
+.time-grid, .time-grid * {
+  line-height: normal;
+}
+
+.time-grid .filter-weekday,
+.time-grid .filter-hour,
+.time-grid .filter-weekday-hour {
+  cursor: pointer;
+}
+
+.time-grid.weekdays-filtered .filter-weekday,
+.time-grid.hours-filtered .filter-hour,
+.time-grid.weekdays-filtered.hours-filtered .filter-weekday-hour {
+  cursor: inherit;
+}
+
+.time-grid.wide-hours .filter-hour,
+.time-grid.wide-hours .filter-weekday-hour {
+  width: 52px;
+}
+
+.box {
+  width: 16px;
+  height: 16px;
+  margin: 1px;
+  display: inline-block;
+  font-size: 10px;
+  vertical-align: top;
+}
+
+.box.filled {
+}
+
+/* from http://colorbrewer2.org/ */
+.box.v0 { background: #FCFBFD; }
+.box.v1 { background: #EFEDF5; }
+.box.v2 { background: #DADAEB; }
+.box.v3 { background: #BCBDDC; }
+.box.v4 { background: #9E9AC8; }
+.box.v5 { background: #807DBA; }
+.box.v6 { background: #6A51A3; }
+.box.v7 { background: #54278F; }
+.box.v8 { background: #3F007D; }
+
+.calendar {
+  text-align: center;
+  margin-top: 10px;
+  margin-left: 100px;
+  width: 800px;
+}
+
+.one-month {
+  float: left;
+  display: inline-block;
+  margin: 1px 5px;
+}
+
+.month-name {
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 4px;
+  font-size: 10px;
+  color: #999;
+  font-weight: normal;
+  cursor: pointer;
+}
+
+.months-filtered .month-name {
+  cursor: inherit;
+}
+
+/* from http://colorbrewer2.org/ */
+.one-month rect.v0 { fill: #eff3ff; }
+.one-month rect.v1 { fill: #9ecae1; }
+.one-month rect.v2 { fill: #6baed6; }
+.one-month rect.v3 { fill: #3182bd; }
+.one-month rect.v4 { fill: #08519c; }
+
+.hovercard {
+  display: none;
+  position: absolute;
+  font-size: 10px;
+  background: #eee;
+  border: 1px solid #999;
+  padding: 0 5px 3px;
+}
+
+.hovercard .title {
+  font-size: 10px;
+  margin: 0;
+}
+
+.hovercard * {
+  line-height: normal;
+}
+
+.hovercard ul {
+  margin: 0 0 0 15px;
+}
+
+.toggle-hour-fine {
+  text-align: right;
+  margin-right: 45px;
+  margin-bottom: 2px;
+}
+
+.toggle-hour-fine i {
+  opacity: 0.6;
+  cursor: pointer;
+}

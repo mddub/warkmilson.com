@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Check ins</title>
+    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/checkins.css" rel="stylesheet">
+  </head>
+
+  <body>
+    <div id="wrap">
+
+      <div class="container loading">
+        <br><br>
+        <div class="alert alert-info">Loading checkins for Mark...</div>
+      </div>
+
+      <div class="container main" style="display: none">
+
+        <div class="header">
+          <!--
+          <a class="change-user" href="/">Change user</a>
+          -->
+
+          <span class="filter-up-links"></span>
+
+          <h2 class="title">
+            My Checkins
+          </h2>
+
+          <p class="lead summary"></p>
+        </div>
+
+        <div class="row-fluid">
+
+          <div class="span5">
+            <p class="chooser-links">
+              <span data-mode="byVenue" class="active">venues</span>
+              <span data-mode="byCategory">categories</span>
+              <span data-mode="byCity">cities</span>
+            </p>
+
+            <table class="venues top-table table-condensed table-hover">
+              <tr>
+                <td colspan="3" class="view-less">View less</td>
+              </tr>
+
+              <tbody class="first-rows"></tbody>
+              <tbody class="rest-rows"></tbody>
+
+              <tr>
+                <td colspan="3" class="view-all">View all</td>
+              </tr>
+            </table>
+          </div>
+
+          <div class="span7">
+            <div class="toggle-hour-fine">
+              <span class="hour-finer">
+                <i class="icon-th"></i>
+              </span>
+              <span class="hour-less-fine">
+                <i class="icon-th-large"></i>
+              </span>
+            </div>
+            <div class="time-grid"></div>
+          </div>
+
+        </div>
+
+        <div class="calendar"></div>
+
+      </div>
+
+    </div>
+
+    <div class="hovercard">
+      <h5 class="title"></h5>
+      <ul>
+      </ul>
+    </div>
+
+    <!-- Templates -->
+
+    <script type="text/template" id="month-template">
+      <div class="one-month RdYlGn">
+        <h4 class="month-name"></h4>
+        <svg></svg>
+      </div>
+    </script>
+
+    <script type="text/template" id="top-row-template">
+      <tr class="venue-row">
+        <td class="graph" style="width: 100px;">
+          <span class="count-bar" style="width: <%= 100 * proportion %>px">&nbsp;</span>
+        </td>
+        <td><%= count %></td>
+        <td><%= name %></td>
+      </tr>
+    </script>
+
+    <script type="text/template" id="filter-up-template">
+      <a href="#" class="filter-up" data-index="<%= index %>">
+        <span class="name"><%= name %></name> &rsaquo;
+      </a>
+    </script>
+
+    <script src="js/vendor/jquery.min.js"></script>
+    <script src="js/vendor/underscore-min.js"></script>
+    <script src="js/vendor/d3.v2.min.js"></script>
+
+    <script src="js/models.js"></script>
+    <script src="js/views.js"></script>
+
+    <script src="js/checkins.js"></script>
+
+    <!-- uncomment ONE of the following two blocks (live vs static copy) -->
+
+    <!--
+    <script>
+      loadCheckins('{{ url }}', '{{ title }}');
+    </script>
+    -->
+
+    <script src="data/my_check_ins.js"></script>
+    <script>
+      initPage(window.MYCHECKINS, "Mark's Checkins");
+    </script>
+
+  </body>
+</html>
